@@ -35,6 +35,9 @@ function AppShell({ title, subtitle, children }) {
               <NavLink to="/schedule" className={linkClass}>
                 📅 Schedule
               </NavLink>
+              <NavLink to="/roadmap" className={linkClass}>
+                🗺️ Roadmap
+              </NavLink>
               <NavLink to="/coach" className={linkClass}>
                 🤖 Coach
               </NavLink>

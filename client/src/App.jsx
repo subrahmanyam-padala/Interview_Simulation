@@ -12,6 +12,8 @@ import NotFoundPage from './pages/NotFoundPage';
 import RegisterPage from './pages/RegisterPage';
 import ReportPage from './pages/ReportPage';
 import ResumeUploadPage from './pages/ResumeUploadPage';
+import RoadmapDetailPage from './pages/RoadmapDetailPage';
+import RoadmapPage from './pages/RoadmapPage';
 import SchedulePage from './pages/SchedulePage';
 
 function App() {
@@ -97,6 +99,23 @@ function App() {
         element={
           <ProtectedRoute adminOnly>
             <AdminPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/roadmap"
+        element={
+          <ProtectedRoute>
+            <RoadmapPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/roadmap/:id"
+        element={
+          <ProtectedRoute>
+            <RoadmapDetailPage />
           </ProtectedRoute>
         }
       />
