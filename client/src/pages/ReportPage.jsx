@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 import { getInterviewReport } from '../api/interviewApi';
 import AppShell from '../components/AppShell';
 import MetricCard from '../components/MetricCard';
+import VoiceAnalyticsDashboard from '../components/VoiceAnalyticsDashboard';
 import { formatDateTime } from '../utils/format';
 
 function ReportPage() {
@@ -214,7 +215,9 @@ function ReportPage() {
               </ul>
             </section>
 
-            {/* ── Proctoring Violations ──────────────────────────────────── */}
+            {/* ── Voice Analytics Dashboard ──────────────────────────────── */}
+            <VoiceAnalyticsDashboard responses={report.responses || []} />
+
             {report.proctoringViolations && report.proctoringViolations.length > 0 ? (
               <section className="glass-card mt-6 p-5 border-rose-500/30">
                 <div className="flex items-center gap-2 mb-4">
