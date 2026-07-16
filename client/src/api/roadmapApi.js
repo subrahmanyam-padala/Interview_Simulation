@@ -1,4 +1,4 @@
-import api from './api';
+import api from './http';
 
 export const generateRoadmap = (data) => api.post('/roadmaps/generate', data);
 export const getMyRoadmaps = () => api.get('/roadmaps');

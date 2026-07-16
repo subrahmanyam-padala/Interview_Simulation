@@ -11,6 +11,7 @@ function InterviewSetupPage() {
     jobRole: 'Software Engineer',
     topic: 'System Design',
     difficulty: 'medium',
+    interviewerGender: 'female',
     questionCount: 5,
     targetCompany: '',
     resumeBased: false,
@@ -109,6 +110,18 @@ function InterviewSetupPage() {
               <option value="easy">Easy</option>
               <option value="medium">Medium</option>
               <option value="hard">Hard</option>
+            </select>
+          </label>
+
+          <label className="text-sm text-slate-300">
+            Interviewer Gender
+            <select
+              className="soft-input mt-2"
+              value={form.interviewerGender}
+              onChange={(event) => setForm((prev) => ({ ...prev, interviewerGender: event.target.value }))}
+            >
+              <option value="female">Female</option>
+              <option value="male">Male</option>
             </select>
           </label>
 

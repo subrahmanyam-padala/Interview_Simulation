@@ -78,6 +78,7 @@ const interviewSchema = new mongoose.Schema(
       topic: { type: String, required: true },
       targetCompany: { type: String }, // For company-specific interviews
       difficulty: { type: String, enum: ['easy', 'medium', 'hard'], required: true },
+      interviewerGender: { type: String, enum: ['male', 'female'], default: 'female' },
       questionCount: { type: Number, min: 5, max: 7, default: 5 },
     },
     status: {

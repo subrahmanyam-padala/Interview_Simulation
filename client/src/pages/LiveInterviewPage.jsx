@@ -426,6 +426,7 @@ function LiveInterviewPage() {
                   textToSpeak={textToSpeak} 
                   onSpeechEnd={() => setIsAvatarSpeaking(false)} 
                   isActive={speech.isListening} 
+                  gender={interview.setup.interviewerGender || 'female'}
                 />
                 <div className="flex-1 w-full">
                   <p className="text-xs uppercase tracking-wider text-slate-400">Current Question</p>

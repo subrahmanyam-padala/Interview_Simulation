@@ -60,11 +60,11 @@ body {
 }
 
 .glass-card {
-  @apply bg-slate-900/60 backdrop-blur-xl border border-slate-700/70 rounded-2xl shadow-glow;
+  @apply bg-slate-900 bg-opacity-60 backdrop-blur-xl border border-slate-700 border-opacity-70 rounded-2xl shadow-glow;
 }
 
 .soft-input {
-  @apply w-full rounded-xl border border-slate-600 bg-slate-900/70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500;
+  @apply w-full rounded-xl border border-slate-600 bg-slate-900 bg-opacity-70 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500;
 }
 
 .primary-btn {

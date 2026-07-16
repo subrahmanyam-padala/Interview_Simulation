@@ -20,6 +20,7 @@ const setupSchema = z.object({
   topic: z.string().min(2),
   targetCompany: z.string().optional(),
   difficulty: z.enum(['easy', 'medium', 'hard']),
+  interviewerGender: z.enum(['male', 'female']).default('female'),
   questionCount: z.number().int().min(5).max(7).default(5),
   resumeId: z.string().optional(),
 });

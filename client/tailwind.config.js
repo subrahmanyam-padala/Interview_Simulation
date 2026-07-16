@@ -42,6 +42,26 @@ export default {
       backgroundImage: {
         mesh: 'var(--bg-mesh)',
       },
+      keyframes: {
+        'interviewer-idle': {
+          '0%, 100%': { transform: 'scale(1) translateY(0)' },
+          '50%': { transform: 'scale(1.02) translateY(-2px)' }, // Breathing effect
+        },
+        'interviewer-speak': {
+          '0%, 100%': { transform: 'scale(1.02) translateY(-2px)' },
+          '25%': { transform: 'scale(1.03) translateY(-3px) rotate(1deg)' },
+          '75%': { transform: 'scale(1.02) translateY(-1px) rotate(-1deg)' },
+        },
+        'interviewer-listen': {
+          '0%, 100%': { transform: 'scale(1) translateY(0)' },
+          '50%': { transform: 'scale(1.01) translateY(-1px) rotate(0.5deg)' }, // Attentive nodding
+        }
+      },
+      animation: {
+        'interviewer-idle': 'interviewer-idle 4s ease-in-out infinite',
+        'interviewer-speak': 'interviewer-speak 2s ease-in-out infinite',
+        'interviewer-listen': 'interviewer-listen 3s ease-in-out infinite',
+      }
     },
   },
   plugins: [],
