@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 
 export default function InterviewerAvatar({ textToSpeak, onSpeechEnd, isActive, gender = 'female' }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const synthRef = useRef(window.speechSynthesis);
   
   const avatarImage = gender === 'male' ? '/assets/interviewers/male.png' : '/assets/interviewers/female.png';
@@ -76,18 +77,33 @@ export default function InterviewerAvatar({ textToSpeak, onSpeechEnd, isActive, 
               ? 'border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.4)]' 
               : 'border-slate-600'
         }`}>
-           {/* Realistic Image with CSS animations */}
-           <img 
-             src={avatarImage} 
-             alt={`AI Interviewer (${gender})`}
-             className={`w-full h-full object-cover transition-transform duration-75 ${
+           {/* Realistic Image with CSS animations or fallback SVG */}
+           {!imageError ? (
+             <img 
+               src={avatarImage} 
+               alt={`AI Interviewer (${gender})`}
+               className={`w-full h-full object-cover transition-transform duration-75 ${
+                  isSpeaking 
+                    ? 'animate-interviewer-speak' 
+                    : isActive
+                      ? 'animate-interviewer-listen'
+                      : 'animate-interviewer-idle'
+               }`}
+               onError={() => setImageError(true)}
+             />
+           ) : (
+             <div className={`w-full h-full flex items-center justify-center bg-slate-700 text-slate-300 transition-transform duration-75 ${
                 isSpeaking 
                   ? 'animate-interviewer-speak' 
                   : isActive
                     ? 'animate-interviewer-listen'
                     : 'animate-interviewer-idle'
-             }`}
-           />
+             }`}>
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-16 h-16 md:w-24 md:h-24">
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+               </svg>
+             </div>
+           )}
         </div>
         
         {/* Pulse rings when speaking */}

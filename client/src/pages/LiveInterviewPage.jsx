@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { completeInterview, getInterview, logProctoringViolation, skipInterviewQuestion, submitInterviewAnswer } from '../api/interviewApi';
+import { runCode } from '../api/codeApi';
 import AppShell from '../components/AppShell';
 import InterviewerAvatar from '../components/InterviewerAvatar';
 import { useFaceAnalysis } from '../hooks/useFaceAnalysis';
@@ -51,6 +52,9 @@ function LiveInterviewPage() {
   
   const [code, setCode] = useState('');
   const [language, setLanguage] = useState('javascript');
+  const [isRunningCode, setIsRunningCode] = useState(false);
+  const [runResult, setRunResult] = useState(null);
+  const [consoleTab, setConsoleTab] = useState('testcases');
 
   const isCodingInterview = interview?.setup?.interviewType === 'coding';
 
@@ -164,7 +168,8 @@ function LiveInterviewPage() {
       return;
     }
     setTranscript('');
-    setCode('// Write your solution here...\n');
+    const initialCode = currentQuestion.starterCode?.[language] || '// Write your solution here...\n';
+    setCode(initialCode);
     speech.resetTranscript();
     timer.reset();
     setLatestEvaluation(null);
@@ -272,6 +277,25 @@ function LiveInterviewPage() {
     }
   };
 
+  const onRunCode = async () => {
+    if (!currentQuestion) return;
+    setIsRunningCode(true);
+    setRunResult(null);
+    setConsoleTab('result');
+    try {
+      const data = await runCode({
+        language,
+        code,
+        testCases: currentQuestion.testCases
+      });
+      setRunResult(data);
+    } catch (e) {
+      setRunResult({ success: false, compilationError: e.response?.data?.message || e.message || 'Error executing code' });
+    } finally {
+      setIsRunningCode(false);
+    }
+  };
+
   const onFinishInterview = async () => {
     try {
       await completeInterview(id);
@@ -366,6 +390,193 @@ function LiveInterviewPage() {
 
       {!interview ? (
         <p className="glass-card p-4 text-slate-300">Loading interview session...</p>
+      ) : isCodingInterview ? (
+        <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-120px)] w-full">
+           <div className="w-full lg:w-2/5 flex flex-col gap-4">
+              <div className="glass-card p-4 flex-shrink-0">
+                  <div className="flex justify-between items-center text-xs text-slate-400 mb-2">
+                     <span>Question {currentIndex} of {totalQuestions}</span>
+                     <span className="bg-slate-800 px-2 py-1 rounded text-amber-300 font-mono">{timer.display}</span>
+                  </div>
+                  <h2 className="text-xl font-bold text-white">{currentQuestion?.text || 'No pending question'}</h2>
+                  <div className="mt-2 flex gap-2">
+                     <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                        currentQuestion?.difficulty === 'hard' ? 'bg-rose-500/20 text-rose-300' :
+                        currentQuestion?.difficulty === 'medium' ? 'bg-amber-500/20 text-amber-300' :
+                        'bg-emerald-500/20 text-emerald-300'
+                     }`}>
+                        {currentQuestion?.difficulty?.toUpperCase() || 'EASY'}
+                     </span>
+                  </div>
+              </div>
+
+              <div className="glass-card p-5 flex-1 overflow-y-auto custom-scrollbar text-sm text-slate-300 space-y-5">
+                 {completedAll ? (
+                   <div className="text-center py-10">
+                     <p className="text-xl text-brand-100 mb-4">All questions completed!</p>
+                     <button className="primary-btn" onClick={onGenerateInterviewReport} disabled={isGeneratingReport}>
+                        {isGeneratingReport ? 'Generating Report...' : 'Generate Interview Report'}
+                     </button>
+                   </div>
+                 ) : currentQuestion ? (
+                   <>
+                     <div className="whitespace-pre-wrap leading-relaxed text-slate-200">
+                        {currentQuestion.description}
+                     </div>
+
+                     {currentQuestion.examples && currentQuestion.examples.length > 0 && (
+                        <div className="space-y-3">
+                          <p className="font-semibold text-white uppercase tracking-wider text-xs">Examples</p>
+                          {currentQuestion.examples.map((ex, i) => (
+                            <div key={i} className="bg-slate-800/80 rounded-lg p-3 border border-slate-700 font-mono text-xs space-y-1">
+                              <p><strong className="text-slate-400">Input:</strong> <span className="text-emerald-300">{ex.input}</span></p>
+                              <p><strong className="text-slate-400">Output:</strong> <span className="text-brand-300">{ex.output}</span></p>
+                              {ex.explanation && <p className="text-slate-400 mt-2"><strong className="text-slate-500">Explanation:</strong> {ex.explanation}</p>}
+                            </div>
+                          ))}
+                        </div>
+                     )}
+
+                     {currentQuestion.constraints && currentQuestion.constraints.length > 0 && (
+                        <div>
+                          <p className="font-semibold text-white uppercase tracking-wider text-xs mb-2">Constraints</p>
+                          <ul className="list-disc list-inside text-xs text-slate-400 space-y-1">
+                            {currentQuestion.constraints.map((c, i) => (
+                              <li key={i} className="font-mono bg-slate-800/50 inline-block px-2 py-0.5 rounded mr-2 mb-1">{c}</li>
+                            ))}
+                          </ul>
+                        </div>
+                     )}
+                   </>
+                 ) : null}
+              </div>
+           </div>
+
+           <div className="w-full lg:w-3/5 flex flex-col gap-4">
+              <div className="glass-card flex-1 flex flex-col overflow-hidden">
+                 <div className="flex justify-between items-center p-3 border-b border-slate-700 bg-slate-900/50">
+                    <select 
+                        className="bg-slate-800 text-slate-200 text-sm rounded-md px-3 py-1.5 border border-slate-700 outline-none focus:border-brand-500 transition-colors" 
+                        value={language} 
+                        onChange={(e) => {
+                          const newLang = e.target.value;
+                          setLanguage(newLang);
+                          if (currentQuestion && currentQuestion.starterCode) {
+                             setCode(currentQuestion.starterCode[newLang] || '// Write your solution here...\n');
+                          }
+                        }}
+                      >
+                        <option value="javascript">JavaScript</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="cpp">C++</option>
+                    </select>
+                    <div className="flex gap-2">
+                       <button className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-1.5 rounded-md text-sm transition-colors flex items-center gap-2" onClick={onRunCode} disabled={isRunningCode || completedAll || !currentQuestion}>
+                          {isRunningCode ? (
+                            <><span className="animate-spin inline-block w-3 h-3 border-2 border-white/20 border-t-white rounded-full"></span> Running...</>
+                          ) : (
+                            <>▶ Run Code</>
+                          )}
+                       </button>
+                       <button className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition-colors" onClick={onSubmitAnswer} disabled={isSubmitting || completedAll || !currentQuestion}>
+                          {isSubmitting ? 'Evaluating...' : 'Submit Solution'}
+                       </button>
+                       <button className="bg-amber-600/20 text-amber-500 hover:bg-amber-600/30 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors" onClick={onSkipQuestion} disabled={isSkipping || completedAll || !currentQuestion}>
+                          Skip
+                       </button>
+                    </div>
+                 </div>
+                 
+                 <div className="flex-1 bg-[#1e1e1e] p-2">
+                    <Editor
+                      height="100%"
+                      language={language}
+                      theme="vs-dark"
+                      value={code}
+                      onChange={(value) => setCode(value || '')}
+                      options={{ minimap: { enabled: false }, fontSize: 14, scrollBeyondLastLine: false, padding: { top: 16 } }}
+                    />
+                 </div>
+              </div>
+
+              <div className="glass-card h-64 flex flex-col flex-shrink-0">
+                 <div className="flex gap-4 p-2 border-b border-slate-700 bg-slate-900/30">
+                    <button className={`px-4 py-1.5 text-sm rounded-md transition-colors ${consoleTab === 'testcases' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`} onClick={() => setConsoleTab('testcases')}>Test Cases</button>
+                    <button className={`px-4 py-1.5 text-sm rounded-md transition-colors ${consoleTab === 'result' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`} onClick={() => setConsoleTab('result')}>Test Result</button>
+                 </div>
+                 
+                 <div className="flex-1 p-4 overflow-y-auto custom-scrollbar bg-slate-900/50 text-sm">
+                    {consoleTab === 'testcases' && currentQuestion?.testCases && (
+                       <div className="space-y-4">
+                          {currentQuestion.testCases.map((tc, idx) => (
+                             <div key={idx} className="space-y-2">
+                                <p className="text-slate-400 text-xs font-semibold uppercase">Test Case {idx + 1}</p>
+                                <div className="bg-slate-800 rounded p-2 font-mono text-xs">
+                                   <div className="text-slate-500">Input:</div>
+                                   <div className="text-slate-200">{tc.input}</div>
+                                </div>
+                             </div>
+                          ))}
+                       </div>
+                    )}
+                    {consoleTab === 'result' && (
+                       <div>
+                          {isRunningCode ? (
+                             <div className="flex items-center gap-3 text-slate-400">
+                                <span className="animate-spin inline-block w-4 h-4 border-2 border-slate-500 border-t-brand-400 rounded-full"></span>
+                                Running Test Cases...
+                             </div>
+                          ) : runResult ? (
+                             runResult.compilationError ? (
+                                <div>
+                                   <p className="text-rose-400 font-bold mb-2">Compilation / Runtime Error</p>
+                                   <pre className="bg-rose-950/30 text-rose-200 p-3 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono border border-rose-900/50">{runResult.compilationError}</pre>
+                                </div>
+                             ) : (
+                                <div>
+                                   <div className="flex items-center gap-4 mb-4">
+                                      <span className={`text-lg font-bold ${runResult.passed === runResult.total ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                         {runResult.passed === runResult.total ? 'Accepted' : 'Wrong Answer'}
+                                      </span>
+                                      <span className="text-slate-400 text-xs">Runtime: {runResult.executionTime} | Memory: {runResult.memory}</span>
+                                   </div>
+                                   
+                                   <div className="space-y-4">
+                                      {runResult.testResults?.map((res, idx) => (
+                                         <div key={idx} className="border border-slate-700 rounded-lg overflow-hidden">
+                                            <div className={`px-3 py-1.5 text-xs font-bold uppercase flex justify-between ${res.passed ? 'bg-emerald-950/30 text-emerald-400' : 'bg-rose-950/30 text-rose-400'}`}>
+                                               <span>Test Case {idx + 1}</span>
+                                               <span>{res.passed ? 'PASS' : 'FAIL'}</span>
+                                            </div>
+                                            <div className="p-3 bg-slate-800 space-y-3 font-mono text-xs">
+                                               <div>
+                                                  <div className="text-slate-500 mb-1">Input:</div>
+                                                  <div className="bg-slate-900 px-2 py-1 rounded text-slate-300">{res.input}</div>
+                                               </div>
+                                               <div>
+                                                  <div className="text-slate-500 mb-1">Expected Output:</div>
+                                                  <div className="bg-slate-900 px-2 py-1 rounded text-emerald-300">{res.expected}</div>
+                                               </div>
+                                               <div>
+                                                  <div className="text-slate-500 mb-1">Your Output:</div>
+                                                  <div className={`bg-slate-900 px-2 py-1 rounded ${res.passed ? 'text-slate-300' : 'text-rose-300'}`}>{res.actual}</div>
+                                               </div>
+                                            </div>
+                                         </div>
+                                      ))}
+                                   </div>
+                                </div>
+                             )
+                          ) : (
+                             <p className="text-slate-500 text-center mt-10">Run your code to see results here.</p>
+                          )}
+                       </div>
+                    )}
+                 </div>
+              </div>
+           </div>
+        </div>
       ) : (
         <div className="relative grid gap-4 lg:pr-56">
           <section className="space-y-4">
@@ -432,13 +643,58 @@ function LiveInterviewPage() {
                   <p className="text-xs uppercase tracking-wider text-slate-400">Current Question</p>
                   <p className="mt-2 text-lg text-white">{currentQuestion?.text || 'No pending question'}</p>
                   {isCodingInterview && currentQuestion && (
-                    <div className="mt-2 text-sm text-slate-300">
-                      <p className="mb-2 whitespace-pre-wrap">{currentQuestion.description}</p>
-                      <div className="grid grid-cols-2 gap-4 mt-2 p-2 bg-slate-800 rounded">
-                        <div><strong className="text-white">Input:</strong> <br/>{currentQuestion.sampleInput}</div>
-                        <div><strong className="text-white">Output:</strong> <br/>{currentQuestion.sampleOutput}</div>
+                    <div className="mt-4 text-sm text-slate-300 space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                      <div>
+                        <p className="whitespace-pre-wrap leading-relaxed">{currentQuestion.description}</p>
                       </div>
-                      <p className="mt-2 text-slate-400 text-xs">Constraints: {currentQuestion.constraints}</p>
+                      
+                      {currentQuestion.examples && currentQuestion.examples.length > 0 && (
+                        <div className="space-y-3">
+                          <p className="font-semibold text-white uppercase tracking-wider text-xs">Examples</p>
+                          {currentQuestion.examples.map((ex, i) => (
+                            <div key={i} className="bg-slate-800/80 rounded-lg p-3 border border-slate-700">
+                              <p><strong className="text-brand-300">Input:</strong> <span className="font-mono text-xs">{ex.input}</span></p>
+                              <p className="mt-1"><strong className="text-brand-300">Output:</strong> <span className="font-mono text-xs">{ex.output}</span></p>
+                              {ex.explanation && <p className="mt-1 text-slate-400 text-xs"><strong className="text-slate-300">Explanation:</strong> {ex.explanation}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {currentQuestion.constraints && currentQuestion.constraints.length > 0 && (
+                        <div>
+                          <p className="font-semibold text-white uppercase tracking-wider text-xs mb-2">Constraints</p>
+                          <ul className="list-disc list-inside text-xs text-slate-400 space-y-1">
+                            {currentQuestion.constraints.map((c, i) => (
+                              <li key={i} className="font-mono">{c}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {currentQuestion.testCases && currentQuestion.testCases.length > 0 && (
+                        <div>
+                          <p className="font-semibold text-white uppercase tracking-wider text-xs mb-2">Test Cases</p>
+                          <div className="bg-slate-800/80 rounded-lg overflow-hidden border border-slate-700">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-900/50">
+                                <tr>
+                                  <th className="p-2 font-medium text-slate-300">Input</th>
+                                  <th className="p-2 font-medium text-slate-300">Expected</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-700 font-mono">
+                                {currentQuestion.testCases.map((tc, i) => (
+                                  <tr key={i}>
+                                    <td className="p-2">{tc.input}</td>
+                                    <td className="p-2 text-emerald-400">{tc.expectedOutput}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   {interviewerLine ? <p className="mt-4 text-sm font-semibold text-brand-300 italic">"{interviewerLine}"</p> : null}
@@ -487,7 +743,17 @@ function LiveInterviewPage() {
               {isCodingInterview ? (
                 <div className="mt-4">
                   <div className="flex gap-2 mb-2">
-                    <select className="soft-input py-1 text-sm w-40" value={language} onChange={(e) => setLanguage(e.target.value)}>
+                    <select 
+                      className="soft-input py-1 text-sm w-40" 
+                      value={language} 
+                      onChange={(e) => {
+                        const newLang = e.target.value;
+                        setLanguage(newLang);
+                        if (currentQuestion && currentQuestion.starterCode) {
+                           setCode(currentQuestion.starterCode[newLang] || '// Write your solution here...\n');
+                        }
+                      }}
+                    >
                       <option value="javascript">JavaScript</option>
                       <option value="python">Python</option>
                       <option value="java">Java</option>

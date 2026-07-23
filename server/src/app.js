@@ -12,6 +12,9 @@ import interviewRoutes from './routes/interviewRoutes.js';
 import resumeRoutes from './routes/resumeRoutes.js';
 import roadmapRoutes from './routes/roadmapRoutes.js';
 import scheduleRoutes from './routes/scheduleRoutes.js';
+import codeRoutes from './routes/codeRoutes.js';
+import peerRoutes from './routes/peerRoutes.js';
+import recruiterRoutes from './routes/recruiterRoutes.js';
 
 const app = express();
 
@@ -38,6 +41,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/coach', coachRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/roadmaps', roadmapRoutes);
+app.use('/api/code', codeRoutes);
+app.use('/api/peer', peerRoutes);
+app.use('/api/recruiter', recruiterRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

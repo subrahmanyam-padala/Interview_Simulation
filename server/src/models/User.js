@@ -24,8 +24,21 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'admin'],
+      enum: ['user', 'admin', 'recruiter'],
       default: 'user',
+    },
+    skills: {
+      type: [String],
+      default: ['JavaScript', 'React', 'Node.js'],
+    },
+    preferredDomain: {
+      type: String,
+      default: 'Software Engineering',
+    },
+    experienceLevel: {
+      type: String,
+      enum: ['Beginner', 'Intermediate', 'Senior', 'Lead'],
+      default: 'Intermediate',
     },
   },
   { timestamps: true }
@@ -48,9 +61,13 @@ userSchema.methods.comparePassword = function comparePassword(candidatePassword)
 userSchema.methods.toSafeObject = function toSafeObject() {
   return {
     id: this._id.toString(),
+    _id: this._id.toString(),
     name: this.name,
     email: this.email,
     role: this.role,
+    skills: this.skills || ['JavaScript', 'React', 'Node.js'],
+    preferredDomain: this.preferredDomain || 'Software Engineering',
+    experienceLevel: this.experienceLevel || 'Intermediate',
     createdAt: this.createdAt,
   };
 };

@@ -97,31 +97,71 @@ export const generateCodingQuestions = async ({ jobRole, topic, difficulty, ques
   const fallback = {
     questions: Array.from({ length: questionCount }, (_item, index) => ({
       questionId: `c-${index + 1}`,
-      text: `Write a function to solve a basic problem related to ${topic}.`,
-      description: `Implement a basic algorithm for ${topic}.`,
-      sampleInput: 'N/A',
-      sampleOutput: 'N/A',
-      constraints: 'N/A',
-      tags: ['coding', topic.toLowerCase()],
+      title: `Solve a ${topic} problem`,
+      description: `Implement a basic algorithm for ${topic}. Given an array of integers, solve the standard problem efficiently.`,
       difficulty,
+      tags: ['coding', topic.toLowerCase()],
+      examples: [
+        {
+          input: "arr = [1, 2, 3]",
+          output: "6",
+          explanation: "The sum of the array is 6."
+        }
+      ],
+      constraints: [
+        "1 <= arr.length <= 10^4",
+        "-10^5 <= arr[i] <= 10^5"
+      ],
+      starterCode: {
+        java: "class Solution {\n    public int solve(int[] arr) {\n        // Your code here\n        return 0;\n    }\n}",
+        python: "def solve(arr):\n    # Your code here\n    pass",
+        javascript: "function solve(arr) {\n    // Your code here\n    return 0;\n}"
+      },
+      testCases: [
+        { input: "[1, 2, 3]", expectedOutput: "6" }
+      ]
     })),
   };
+
+  const outputSchema = `{
+  "questions": [
+    {
+      "questionId": "c-1",
+      "title": "String",
+      "description": "String",
+      "difficulty": "${difficulty}",
+      "tags": ["String"],
+      "examples": [{"input": "String", "output": "String", "explanation": "String"}],
+      "constraints": ["String"],
+      "starterCode": {"java": "String", "python": "String", "javascript": "String"},
+      "testCases": [{"input": "String", "expectedOutput": "String"}]
+    }
+  ]
+}`;
 
   const result = await askOpenAIForJSON(
     [
       {
         role: 'system',
-        content: 'You create coding interview questions. Return strict JSON with key "questions" as an array of objects. Each object must have "questionId", "text" (short title), "description" (detailed problem statement), "sampleInput", "sampleOutput", "constraints", "tags" (array of strings), and "difficulty".',
+        content: `You create coding interview questions. Return strict JSON matching exactly this schema: ${outputSchema}. Every field is required. Do not use 'N/A'. Provide realistic code and test cases.`,
       },
       {
         role: 'user',
-        content: `Generate ${questionCount} coding interview questions for:\nRole: ${jobRole}\nTopic: ${topic}\nDifficulty: ${difficulty}\nOutput schema:\n{"questions":[{"questionId":"c-1","text":"...","description":"...","sampleInput":"...","sampleOutput":"...","constraints":"...","tags":["..."],"difficulty":"${difficulty}"}]}`,
+        content: `Generate ${questionCount} coding interview questions for:\nRole: ${jobRole}\nTopic: ${topic}\nDifficulty: ${difficulty}\nMake sure to provide complete examples, constraints, starter code for java/python/javascript, and test cases.`,
       },
     ],
     fallback
   );
 
-  return result.questions;
+  // Map result to ensure `text` field is populated from `title` since our schema expects `text`
+  if (Array.isArray(result.questions)) {
+    return result.questions.map(q => ({
+      ...q,
+      text: q.title || q.text || 'Coding Problem',
+    }));
+  }
+
+  return fallback.questions.map(q => ({ ...q, text: q.title }));
 };
 
 export const evaluateCodeAnswer = async ({ question, code, language }) => {

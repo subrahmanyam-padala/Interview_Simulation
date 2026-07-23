@@ -15,6 +15,13 @@ import ResumeUploadPage from './pages/ResumeUploadPage';
 import RoadmapDetailPage from './pages/RoadmapDetailPage';
 import RoadmapPage from './pages/RoadmapPage';
 import SchedulePage from './pages/SchedulePage';
+import BattleLobbyPage from './pages/BattleLobbyPage';
+import BattleArenaPage from './pages/BattleArenaPage';
+import PeerCandidatesPage from './pages/PeerCandidatesPage';
+import PeerInterviewRoomPage from './pages/PeerInterviewRoomPage';
+import PeerHistoryPage from './pages/PeerHistoryPage';
+import RecruiterDashboardPage from './pages/RecruiterDashboardPage';
+import RecruiterRoomPage from './pages/RecruiterRoomPage';
 
 function App() {
   return (
@@ -116,6 +123,62 @@ function App() {
         element={
           <ProtectedRoute>
             <RoadmapDetailPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/battle"
+        element={
+          <ProtectedRoute>
+            <BattleLobbyPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/battle/:id"
+        element={
+          <ProtectedRoute>
+            <BattleArenaPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/peer"
+        element={
+          <ProtectedRoute>
+            <PeerCandidatesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/peer/room/:roomId"
+        element={
+          <ProtectedRoute>
+            <PeerInterviewRoomPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/peer/history"
+        element={
+          <ProtectedRoute>
+            <PeerHistoryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recruiter"
+        element={
+          <ProtectedRoute>
+            <RecruiterDashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recruiter/room/:roomId"
+        element={
+          <ProtectedRoute>
+            <RecruiterRoomPage />
           </ProtectedRoute>
         }
       />

@@ -3,13 +3,27 @@ import mongoose from 'mongoose';
 const questionSchema = new mongoose.Schema(
   {
     questionId: { type: String, required: true },
-    text: { type: String, required: true },
-    description: { type: String }, // For coding interviews
-    sampleInput: { type: String }, // For coding interviews
-    sampleOutput: { type: String }, // For coding interviews
-    constraints: { type: String }, // For coding interviews
-    tags: [{ type: String }],
+    text: { type: String, required: true }, // title
+    description: { type: String }, // detailed problem statement
     difficulty: { type: String, required: true },
+    tags: [{ type: String }],
+    
+    // Coding Interview specific fields
+    examples: [{
+      input: { type: String },
+      output: { type: String },
+      explanation: { type: String }
+    }],
+    constraints: [{ type: String }],
+    starterCode: {
+      java: { type: String },
+      python: { type: String },
+      javascript: { type: String }
+    },
+    testCases: [{
+      input: { type: String },
+      expectedOutput: { type: String }
+    }]
   },
   { _id: false }
 );
