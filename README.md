@@ -10,7 +10,8 @@ A state-of-the-art, full-stack platform designed to revolutionize interview prep
 * **Adaptive Question Generation**: Dynamically crafts context-aware technical, behavioral, and domain-specific questions.
 * **Voice & Expression Analytics**: Monitors speaking pace (WPM), pause durations, confidence scores, and facial expression cues via `face-api.js`.
 * **Proctoring & Anti-Cheat**: Real-time eye tracking, face detection, tab-switching alerts, and multi-face detection.
-* **Automated Evaluation Reports**: Generates detailed performance breakdowns, code quality scores, and actionable feedback.
+* **Automated Evaluation Reports**: Generates detailed performance breakdowns, voice analytics, and actionable feedback presented in a highly readable, compact dashboard.
+* **Enterprise-Grade UI**: Clean, light-themed, distraction-free interface inspired by modern AI and SaaS platforms.
 
 ### 2. ⚔️ Competitive Coding Battle (1v1)
 * **Real-time Synchronization**: Powered by Socket.IO for instant room matching, countdown timers, and live progress tracking.
@@ -45,7 +46,7 @@ A state-of-the-art, full-stack platform designed to revolutionize interview prep
 | Layer | Technologies Used |
 | :--- | :--- |
 | **Frontend Framework** | React 18, Vite, React Router DOM v6 |
-| **Styling & Aesthetics** | Tailwind CSS, Custom Design Tokens, Glassmorphism UI |
+| **Styling & Aesthetics** | Tailwind CSS, Enterprise Light Theme, Lucide Icons, Soft Elevation UI |
 | **Code Editor** | Monaco Editor (`@monaco-editor/react`) |
 | **Real-Time Communication** | Socket.IO Client, WebRTC (`RTCPeerConnection`, `getDisplayMedia`) |
 | **Data Visualization & Media** | Recharts, Face-API.js, HTML2Canvas, jsPDF |

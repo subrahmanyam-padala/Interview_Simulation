@@ -5,39 +5,35 @@ import {
   PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip, XAxis, YAxis
 } from 'recharts';
+import { Mic, Activity, Volume2, TrendingUp, AlertCircle, Clock, CheckCircle } from 'lucide-react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const scoreColor = (val) => {
-  if (val >= 80) return '#22c55e';
-  if (val >= 60) return '#f97316';
-  return '#ef4444';
+  if (val >= 80) return '#16A34A'; // Success green
+  if (val >= 60) return '#F59E0B'; // Warning orange
+  return '#EF4444'; // Danger red
 };
 
-const ScoreBadge = ({ label, value, icon }) => (
-  <div className="flex flex-col items-center gap-2 rounded-2xl border border-slate-700/60 bg-slate-900/50 p-4 text-center">
-    <span className="text-2xl">{icon}</span>
-    <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</p>
-    <div className="relative w-16 h-16">
-      <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
-        <circle cx="18" cy="18" r="15.915" fill="none" stroke="#1e293b" strokeWidth="3" />
-        <circle
-          cx="18" cy="18" r="15.915" fill="none"
-          stroke={scoreColor(value)} strokeWidth="3"
-          strokeDasharray={`${value} ${100 - value}`}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dasharray 0.8s ease' }}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">{value}</span>
+const ScoreBadge = ({ label, value, icon: Icon }) => (
+  <div className="flex flex-col gap-2 rounded-[12px] border border-[#E2E8F0] bg-[#FFFFFF] p-3 shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+    <div className="flex justify-between items-center">
+      <div className="flex items-center gap-2 text-[#64748B]">
+        <Icon className="w-4 h-4 text-[#2563EB]" />
+        <span className="text-[12px] font-bold uppercase tracking-wider">{label}</span>
+      </div>
+      <span className={`text-[14px] font-bold`} style={{ color: scoreColor(value) }}>{value}</span>
+    </div>
+    <div className="w-full bg-[#F1F5F9] rounded-full h-1.5 mt-1 overflow-hidden">
+      <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${value}%`, backgroundColor: scoreColor(value) }} />
     </div>
   </div>
 );
 
-const StatPill = ({ label, value, sub, colorClass = 'text-brand-400' }) => (
-  <div className="rounded-xl border border-slate-700/50 bg-slate-900/40 px-4 py-3">
-    <p className="text-xs text-slate-400">{label}</p>
-    <p className={`text-xl font-bold ${colorClass}`}>{value}</p>
-    {sub && <p className="text-xs text-slate-500 mt-0.5">{sub}</p>}
+const StatPill = ({ label, value, sub, colorClass = 'text-[#2563EB]' }) => (
+  <div className="rounded-[12px] border border-[#E2E8F0] bg-[#FFFFFF] px-4 py-3 shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
+    <p className="text-[12px] font-bold text-[#64748B] uppercase tracking-wider mb-1">{label}</p>
+    <p className={`text-[20px] font-bold ${colorClass}`}>{value}</p>
+    {sub && <p className="text-[11px] text-[#94A3B8] mt-1 font-medium">{sub}</p>}
   </div>
 );
 
@@ -55,11 +51,11 @@ export default function VoiceAnalyticsDashboard({ responses = [] }) {
 
     const avgWpm = avg('wpm');
     const classifySpeed = (wpm) => {
-      if (wpm < 80)  return { label: 'Too Slow', color: '#f59e0b' };
-      if (wpm < 110) return { label: 'Slow', color: '#eab308' };
-      if (wpm < 150) return { label: 'Ideal', color: '#22c55e' };
-      if (wpm < 180) return { label: 'Fast', color: '#f97316' };
-      return { label: 'Too Fast', color: '#ef4444' };
+      if (wpm < 80)  return { label: 'Too Slow', color: '#F59E0B', textClass: 'text-[#F59E0B]' };
+      if (wpm < 110) return { label: 'Slow', color: '#FCD34D', textClass: 'text-[#F59E0B]' };
+      if (wpm < 150) return { label: 'Ideal', color: '#16A34A', textClass: 'text-[#16A34A]' };
+      if (wpm < 180) return { label: 'Fast', color: '#F97316', textClass: 'text-[#F59E0B]' };
+      return { label: 'Too Fast', color: '#EF4444', textClass: 'text-[#EF4444]' };
     };
 
     return {
@@ -117,160 +113,119 @@ export default function VoiceAnalyticsDashboard({ responses = [] }) {
 
   if (!responses.length) return null;
 
-  return (
-    <section className="mt-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">🎙️</span>
-        <h2 className="font-display text-2xl text-white">Voice Analytics</h2>
-      </div>
+  const cardStyle = "bg-[#FFFFFF] border border-[#E2E8F0] p-4 rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.04)]";
 
+  return (
+    <div className="space-y-4">
       {/* Score Badges Row */}
       {aggregate && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <ScoreBadge label="Clarity" value={aggregate.avgClarity} icon="🔈" />
-          <ScoreBadge label="Fluency" value={aggregate.avgFluency} icon="🌊" />
-          <ScoreBadge label="Confidence" value={aggregate.avgConfidence} icon="💪" />
-          <ScoreBadge label="Volume Stability" value={aggregate.avgVolume} icon="📢" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <ScoreBadge label="Clarity" value={aggregate.avgClarity} icon={Activity} />
+          <ScoreBadge label="Fluency" value={aggregate.avgFluency} icon={TrendingUp} />
+          <ScoreBadge label="Confidence" value={aggregate.avgConfidence} icon={CheckCircle} />
+          <ScoreBadge label="Volume" value={aggregate.avgVolume} icon={Volume2} />
         </div>
       )}
 
       {/* Stat Pills */}
       {aggregate && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatPill
-            label="Avg. Speaking Speed"
+            label="Avg. Speed"
             value={`${aggregate.avgWpm} WPM`}
             sub={aggregate.speedInfo.label}
-            colorClass={aggregate.speedInfo.label === 'Ideal' ? 'text-emerald-400' : 'text-orange-400'}
+            colorClass={aggregate.speedInfo.textClass}
           />
-          <StatPill label="Total Filler Words" value={aggregate.totalFillers} sub="across all answers" colorClass="text-rose-400" />
-          <StatPill label="Total Pauses" value={aggregate.totalPauses} sub="detected" colorClass="text-amber-400" />
-          <StatPill label="Questions Analyzed" value={responses.filter(r => r.voiceMetrics?.wpm > 0).length} sub={`of ${responses.length}`} colorClass="text-brand-400" />
+          <StatPill label="Filler Words" value={aggregate.totalFillers} sub="across all answers" colorClass="text-[#EF4444]" />
+          <StatPill label="Total Pauses" value={aggregate.totalPauses} sub="detected" colorClass="text-[#F59E0B]" />
+          <StatPill label="Questions" value={responses.filter(r => r.voiceMetrics?.wpm > 0).length} sub={`of ${responses.length}`} colorClass="text-[#2563EB]" />
         </div>
       )}
 
       {/* Charts Row 1: Radar + WPM Timeline */}
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         {/* Radar Chart */}
-        <div className="glass-card p-4">
-          <p className="mb-3 text-sm font-semibold text-slate-300">🕸️ Voice Profile</p>
-          <div className="h-64">
+        <div className={cardStyle}>
+          <p className="mb-2 text-[13px] font-bold text-[#64748B] flex items-center gap-2"><Activity className="w-4 h-4"/> Voice Profile</p>
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData}>
-                <PolarGrid stroke="#334155" />
-                <PolarAngleAxis dataKey="metric" tick={{ fill: '#cbd5e1', fontSize: 12 }} />
-                <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                <Radar name="Score" dataKey="score" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.3} />
-                <Tooltip formatter={(v) => [`${v}`, 'Score']} />
+              <RadarChart data={radarData} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
+                <PolarGrid stroke="#F1F5F9" />
+                <PolarAngleAxis dataKey="metric" tick={{ fill: '#64748B', fontSize: 11, fontWeight: 600 }} />
+                <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#94A3B8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Radar name="Score" dataKey="score" stroke="#2563EB" fill="#2563EB" fillOpacity={0.15} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 10px rgba(15,23,42,0.06)' }} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* WPM Timeline */}
-        <div className="glass-card p-4">
-          <p className="mb-3 text-sm font-semibold text-slate-300">⏱️ Speaking Speed per Question (WPM)</p>
-          <div className="h-64">
+        <div className={cardStyle}>
+          <p className="mb-2 text-[13px] font-bold text-[#64748B] flex items-center gap-2"><Clock className="w-4 h-4"/> Speaking Speed (WPM)</p>
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timelineData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" tick={{ fill: '#cbd5e1' }} />
-                <YAxis domain={[0, 250]} tick={{ fill: '#cbd5e1' }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="WPM" stroke="#06b6d4" strokeWidth={2} dot={{ r: 4, fill: '#06b6d4' }} isAnimationActive={false} />
-                {/* Ideal range reference */}
-                <Line type="monotone" data={timelineData.map(d => ({ ...d, Ideal: 130 }))} dataKey="Ideal" stroke="#22c55e" strokeDasharray="5 5" strokeWidth={1} dot={false} isAnimationActive={false} />
+              <LineChart data={timelineData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 250]} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 10px rgba(15,23,42,0.06)' }} />
+                <Line type="monotone" dataKey="WPM" stroke="#2563EB" strokeWidth={2} dot={{ r: 3, fill: '#2563EB' }} isAnimationActive={false} />
+                <Line type="monotone" data={timelineData.map(d => ({ ...d, Ideal: 130 }))} dataKey="Ideal" stroke="#16A34A" strokeDasharray="4 4" strokeWidth={1} dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-xs text-slate-500 mt-2">🟢 Dashed line = Ideal speed (130 WPM)</p>
         </div>
       </div>
 
       {/* Charts Row 2: Clarity/Fluency timeline + Filler Words */}
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-3 xl:grid-cols-2">
         {/* Clarity & Fluency Timeline */}
-        <div className="glass-card p-4">
-          <p className="mb-3 text-sm font-semibold text-slate-300">📈 Clarity & Fluency Trend</p>
-          <div className="h-64">
+        <div className={cardStyle}>
+          <p className="mb-2 text-[13px] font-bold text-[#64748B] flex items-center gap-2"><TrendingUp className="w-4 h-4"/> Clarity & Fluency Trend</p>
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timelineData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" tick={{ fill: '#cbd5e1' }} />
-                <YAxis domain={[0, 100]} tick={{ fill: '#cbd5e1' }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="Clarity" stroke="#06b6d4" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
-                <Line type="monotone" dataKey="Fluency" stroke="#f97316" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
+              <LineChart data={timelineData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 10px rgba(15,23,42,0.06)' }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <Line type="monotone" dataKey="Clarity" stroke="#2563EB" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                <Line type="monotone" dataKey="Fluency" stroke="#16A34A" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Filler Words Breakdown */}
-        <div className="glass-card p-4">
-          <p className="mb-3 text-sm font-semibold text-slate-300">🚧 Filler Word Usage</p>
+        <div className={cardStyle}>
+          <p className="mb-2 text-[13px] font-bold text-[#64748B] flex items-center gap-2"><AlertCircle className="w-4 h-4"/> Filler Word Usage</p>
           {fillerData.length > 0 ? (
-            <div className="h-64">
+            <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={fillerData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis type="number" tick={{ fill: '#cbd5e1' }} allowDecimals={false} />
-                  <YAxis dataKey="word" type="category" tick={{ fill: '#cbd5e1', fontSize: 12 }} width={70} />
-                  <Tooltip />
+                <BarChart data={fillerData} layout="vertical" margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={true} vertical={false} />
+                  <XAxis type="number" tick={{ fill: '#64748B', fontSize: 11 }} allowDecimals={false} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="word" type="category" tick={{ fill: '#64748B', fontSize: 11 }} width={50} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: '#F8FAFC' }} contentStyle={{ borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 4px 10px rgba(15,23,42,0.06)' }} />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {fillerData.map((_, i) => (
-                      <Cell key={i} fill={['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899', '#64748b'][i % 8]} />
+                      <Cell key={i} fill={['#EF4444', '#F97316', '#EAB308', '#22C55E', '#3B82F6', '#8B5CF6', '#EC4899', '#64748B'][i % 8]} />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-              <span className="text-4xl mb-3">🎉</span>
-              <p className="text-sm font-semibold text-emerald-400">No filler words detected!</p>
-              <p className="text-xs mt-1">Excellent speaking discipline.</p>
+            <div className="h-[200px] flex flex-col items-center justify-center text-[#64748B]">
+              <CheckCircle className="w-8 h-8 text-[#16A34A] mb-2" />
+              <p className="text-[14px] font-bold text-[#16A34A]">No filler words detected!</p>
+              <p className="text-[12px] mt-1">Excellent speaking discipline.</p>
             </div>
           )}
         </div>
       </div>
-
-      {/* Pauses per question bar chart */}
-      <div className="glass-card p-4">
-        <p className="mb-3 text-sm font-semibold text-slate-300">⏸️ Pauses & Filler Words per Question</p>
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={timelineData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="name" tick={{ fill: '#cbd5e1' }} />
-              <YAxis tick={{ fill: '#cbd5e1' }} allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="Pauses" fill="#8b5cf6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-              <Bar dataKey="Fillers" fill="#ef4444" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Speed Range Legend */}
-      <div className="glass-card p-4">
-        <p className="mb-3 text-sm font-semibold text-slate-300">🏃 Speaking Speed Guide</p>
-        <div className="flex flex-wrap gap-3">
-          {[
-            { label: '< 80 WPM', tag: 'Too Slow', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-            { label: '80–110 WPM', tag: 'Slow', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-            { label: '110–150 WPM', tag: '✓ Ideal', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-            { label: '150–180 WPM', tag: 'Fast', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-            { label: '> 180 WPM', tag: 'Too Fast', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
-          ].map(s => (
-            <div key={s.label} className={`px-3 py-2 rounded-xl border text-xs font-semibold ${s.color}`}>
-              <p>{s.label}</p><p className="font-bold">{s.tag}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    </div>
   );
 }

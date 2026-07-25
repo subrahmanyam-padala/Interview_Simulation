@@ -64,8 +64,7 @@ const getNextQuestionIfAny = (interview) => {
   return interview.questions[interview.responses.length] || null;
 };
 
-const adaptNextQuestion = async ({ interview, latestResponse }) => {
-  const nextIndex = interview.responses.length;
+const adaptNextQuestionData = async ({ interview, latestResponse, nextIndex }) => {
   const existingNext = interview.questions[nextIndex];
   if (!existingNext) {
     return null;
@@ -83,20 +82,24 @@ const adaptNextQuestion = async ({ interview, latestResponse }) => {
     nextQuestionId: existingNext.questionId,
   });
 
-  interview.questions[nextIndex] = {
+  const nextQuestionPayload = {
     questionId: existingNext.questionId,
     text: adaptiveQuestion.text,
     tags: Array.isArray(adaptiveQuestion.tags) ? adaptiveQuestion.tags : existingNext.tags,
     difficulty: adaptiveQuestion.difficulty || existingNext.difficulty,
   };
 
-  const nextQuestionDoc = interview.questions[nextIndex];
-  const nextQuestionPayload =
-    typeof nextQuestionDoc?.toObject === 'function' ? nextQuestionDoc.toObject() : { ...nextQuestionDoc };
+  const fullNextQuestion = {
+    ...(typeof existingNext.toObject === 'function' ? existingNext.toObject() : existingNext),
+    ...nextQuestionPayload
+  };
 
   return {
-    ...nextQuestionPayload,
-    encouragement: adaptiveQuestion.encouragement || '',
+    documentData: fullNextQuestion,
+    payload: {
+      ...fullNextQuestion,
+      encouragement: adaptiveQuestion.encouragement || '',
+    }
   };
 };
 
@@ -223,7 +226,7 @@ export const submitAnswer = asyncHandler(async (req, res) => {
     });
   }
 
-  interview.responses.push({
+  const responseData = {
     questionId: payload.questionId,
     questionText: question.text,
     transcript: payload.transcript || '',
@@ -235,18 +238,34 @@ export const submitAnswer = asyncHandler(async (req, res) => {
     aiEvaluation: interview.setup.interviewType === 'coding' ? undefined : aiEvaluation,
     codeEvaluation: interview.setup.interviewType === 'coding' ? aiEvaluation : undefined,
     responseScores,
-  });
+  };
 
-  const latestResponse = interview.responses[interview.responses.length - 1];
-  const adaptiveNext = await adaptNextQuestion({ interview, latestResponse });
-  await interview.save();
-  const nextQuestion = adaptiveNext || getNextQuestionIfAny(interview);
+  const nextIndex = interview.responses.length;
+  const adaptiveNext = await adaptNextQuestionData({ interview, latestResponse: responseData, nextIndex });
+  
+  const updateQuery = {
+    $push: { responses: responseData }
+  };
+  
+  if (adaptiveNext) {
+    updateQuery.$set = {
+      [`questions.${nextIndex}`]: adaptiveNext.documentData
+    };
+  }
+
+  const updatedInterview = await Interview.findByIdAndUpdate(
+    req.params.id,
+    updateQuery,
+    { new: true, runValidators: false }
+  );
+
+  const nextQuestion = adaptiveNext ? adaptiveNext.payload : getNextQuestionIfAny(updatedInterview);
 
   res.json({
     evaluation: aiEvaluation,
     responseScores,
-    answered: interview.responses.length,
-    totalQuestions: interview.questions.length,
+    answered: updatedInterview.responses.length,
+    totalQuestions: updatedInterview.questions.length,
     nextQuestion,
     isCompleted: !nextQuestion,
   });
@@ -278,7 +297,7 @@ export const skipQuestion = asyncHandler(async (req, res) => {
     throw new AppError('This question is already answered or skipped', 409);
   }
 
-  interview.responses.push({
+  const responseData = {
     questionId: payload.questionId,
     questionText: question.text,
     transcript: '[Skipped by candidate]',
@@ -313,17 +332,33 @@ export const skipQuestion = asyncHandler(async (req, res) => {
       clarity: 0,
       fluency: 0,
     },
-  });
+  };
 
-  const latestResponse = interview.responses[interview.responses.length - 1];
-  const adaptiveNext = await adaptNextQuestion({ interview, latestResponse });
-  await interview.save();
-  const nextQuestion = adaptiveNext || getNextQuestionIfAny(interview);
+  const nextIndex = interview.responses.length;
+  const adaptiveNext = await adaptNextQuestionData({ interview, latestResponse: responseData, nextIndex });
+  
+  const updateQuery = {
+    $push: { responses: responseData }
+  };
+  
+  if (adaptiveNext) {
+    updateQuery.$set = {
+      [`questions.${nextIndex}`]: adaptiveNext.documentData
+    };
+  }
+
+  const updatedInterview = await Interview.findByIdAndUpdate(
+    req.params.id,
+    updateQuery,
+    { new: true, runValidators: false }
+  );
+
+  const nextQuestion = adaptiveNext ? adaptiveNext.payload : getNextQuestionIfAny(updatedInterview);
 
   res.json({
     skipped: true,
-    answered: interview.responses.length,
-    totalQuestions: interview.questions.length,
+    answered: updatedInterview.responses.length,
+    totalQuestions: updatedInterview.questions.length,
     nextQuestion,
     isCompleted: !nextQuestion,
   });
@@ -403,13 +438,9 @@ export const logProctoringViolation = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Type and message are required' });
   }
 
-  const interview = await Interview.findOne({ _id: id, user: req.user._id });
-  if (!interview) {
-    return res.status(404).json({ success: false, message: 'Interview not found' });
-  }
-
-  interview.proctoringViolations.push({ type, message, timestamp: new Date() });
-  await interview.save();
+  await Interview.findByIdAndUpdate(id, {
+    $push: { proctoringViolations: { type, message, timestamp: new Date() } }
+  });
 
   res.json({ success: true });
 });

@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Editor from '@monaco-editor/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { completeInterview, getInterview, logProctoringViolation, skipInterviewQuestion, submitInterviewAnswer } from '../api/interviewApi';
-import { runCode } from '../api/codeApi';
-import AppShell from '../components/AppShell';
+import { completeInterview, getInterview, logProctoringViolation, submitInterviewAnswer } from '../api/interviewApi';
 import InterviewerAvatar from '../components/InterviewerAvatar';
 import { useFaceAnalysis } from '../hooks/useFaceAnalysis';
 import { useInterviewTimer } from '../hooks/useInterviewTimer';
@@ -11,82 +8,155 @@ import { useProctoring } from '../hooks/useProctoring';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { analyzeVoiceMetrics } from '../utils/voiceAnalysis';
 
-const ANSWER_TIME_LIMIT = 120;
-
-function SignalBar({ label, value, colorClass = 'bg-cyan-500' }) {
-  const safeValue = Math.max(0, Math.min(100, Math.round(value || 0)));
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs text-slate-300">
-        <span>{label}</span>
-        <span className="font-semibold text-white">{safeValue}</span>
-      </div>
-      <div className="h-2 rounded-full bg-slate-800">
-        <div className={`h-2 rounded-full transition-all duration-300 ${colorClass}`} style={{ width: `${safeValue}%` }} />
-      </div>
-    </div>
-  );
-}
+const ANSWER_TIME_LIMIT = 300;
 
 function LiveInterviewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const videoRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const inputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
-  const [recordingUrl, setRecordingUrl] = useState(null);
+
+  const [hasStarted, setHasStarted] = useState(false);
+  const [interviewerGender, setInterviewerGender] = useState('female');
 
   const [interview, setInterview] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [answeredCount, setAnsweredCount] = useState(0);
   const [transcript, setTranscript] = useState('');
-  const [latestEvaluation, setLatestEvaluation] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSkipping, setIsSkipping] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [error, setError] = useState('');
-  const [events, setEvents] = useState([]);
-  const [interviewerLine, setInterviewerLine] = useState('');
+  
+  const [chatHistory, setChatHistory] = useState([]);
   const [textToSpeak, setTextToSpeak] = useState('');
   const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false);
   
-  const [code, setCode] = useState('');
-  const [language, setLanguage] = useState('javascript');
-  const [isRunningCode, setIsRunningCode] = useState(false);
-  const [runResult, setRunResult] = useState(null);
-  const [consoleTab, setConsoleTab] = useState('testcases');
+  const handleAvatarSpeechEnd = useCallback(() => {
+    setIsAvatarSpeaking(false);
+  }, []);
+  
+  const [isFacePaused, setIsFacePaused] = useState(false);
+  const facePauseTimeoutRef = useRef(null);
+  const noResponseTimeoutRef = useRef(null);
+  const hasRepeatedRef = useRef(false);
 
-  const isCodingInterview = interview?.setup?.interviewType === 'coding';
-
+  // Hook initializations
   const speech = useSpeechRecognition();
   const face = useFaceAnalysis(videoRef);
   const timer = useInterviewTimer(ANSWER_TIME_LIMIT, speech.isListening);
 
-  const pushEvent = (message) => {
-    const stamp = new Date().toLocaleTimeString();
-    setEvents((prev) => [{ stamp, message }, ...prev].slice(0, 8));
-  };
+  // Auto scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, transcript, speech.interimText]);
+
+  // Focus input when AI finishes speaking, and AUTO-START microphone
+  useEffect(() => {
+    if (!hasStarted) return;
+    
+    if (isAvatarSpeaking) {
+      console.log('[Interview Flow] AI is speaking. Pausing recognition.');
+      if (speech.isListening) speech.stop();
+      return;
+    }
+
+    if (!isAvatarSpeaking && !isSubmitting && currentQuestion && !speech.isListening && !isFacePaused) {
+      console.log('[Interview Flow] AI finished speaking. AUTO-STARTING microphone.');
+      inputRef.current?.focus();
+      try {
+        speech.start();
+      } catch (err) {
+        console.error('[Interview Flow] Auto start speech failed', err);
+      }
+
+      // Start No-Response timer
+      if (!noResponseTimeoutRef.current) {
+        noResponseTimeoutRef.current = setTimeout(() => {
+          if (!transcript.trim()) {
+            if (!hasRepeatedRef.current) {
+              console.log('[Interview Flow] 30s with no response. Repeating question.');
+              hasRepeatedRef.current = true;
+              setTextToSpeak(currentQuestion.text);
+              setIsAvatarSpeaking(true);
+            } else {
+              console.log('[Interview Flow] Another 30s with no response. Moving to next question.');
+              onSubmitAnswer(true); // Force submit
+            }
+          }
+        }, 30000);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAvatarSpeaking, hasStarted, isSubmitting, currentQuestion, speech.isListening, isFacePaused, transcript]);
+
+  // Auto-submit logic based on transcript pause
+  useEffect(() => {
+    const textLength = transcript.trim().length;
+    
+    // If user started speaking, clear the no-response timer
+    if (textLength > 0 && noResponseTimeoutRef.current) {
+      clearTimeout(noResponseTimeoutRef.current);
+      noResponseTimeoutRef.current = null;
+    }
+
+    if (speech.isListening && textLength >= 4 && !isAvatarSpeaking) {
+      console.log(`[Interview Flow] Transcript length ${textLength}, scheduling auto-submit in 5 seconds...`);
+      const timeout = setTimeout(() => {
+        console.log('[Interview Flow] Auto-submitting answer due to silence pause.');
+        onSubmitAnswer();
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcript, speech.interimText, speech.isListening, isAvatarSpeaking]);
+
+  // Face Recognition pause logic
+  useEffect(() => {
+    if (!hasStarted) return;
+    
+    if (!face.isFaceDetected && face.faceStatus && (face.faceStatus.includes('No Face') || face.faceStatus.includes('Multiple'))) {
+      if (!facePauseTimeoutRef.current) {
+        console.log('[Proctoring] Face not detected, starting 10s timer...');
+        facePauseTimeoutRef.current = setTimeout(() => {
+          console.log('[Proctoring] 10s passed with no face. Pausing interview.');
+          setIsFacePaused(true);
+          if (speech.isListening) speech.stop();
+        }, 10000);
+      }
+    } else if (face.isFaceDetected) {
+      if (facePauseTimeoutRef.current) {
+        clearTimeout(facePauseTimeoutRef.current);
+        facePauseTimeoutRef.current = null;
+      }
+      if (isFacePaused) {
+        console.log('[Proctoring] Face detected again. Resuming interview.');
+        setIsFacePaused(false);
+      }
+    }
+  }, [face.isFaceDetected, face.faceStatus, hasStarted, isFacePaused, speech.isListening]);
 
   // ── Proctoring ────────────────────────────────────────────────────────────
   const handleViolation = useCallback(async (violation) => {
-    pushEvent(violation.message);
     if (id) {
       try {
         await logProctoringViolation(id, { type: violation.type, message: violation.message });
       } catch (_) {
-        // non-blocking – violations are best-effort
+        // non-blocking
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const proctoring = useProctoring({
+  useProctoring({
     videoRef,
     interviewId: id,
     onViolation: handleViolation,
-    enabled: !!interview && interview.status !== 'completed',
+    enabled: !!interview && interview.status !== 'completed' && hasStarted,
   });
 
+  // Load Interview
   useEffect(() => {
     const loadInterview = async () => {
       try {
@@ -102,45 +172,43 @@ function LiveInterviewPage() {
         setInterview(payload);
         setAnsweredCount(payload.responses.length);
         setCurrentQuestion(next);
-        setInterviewerLine('Welcome. Let us begin the interview. Please answer clearly and concisely.');
-        pushEvent('Interview session loaded');
       } catch (requestError) {
         setError(requestError.response?.data?.message || 'Unable to load interview session');
       }
     };
-
     loadInterview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate]);
 
+  // Start Camera & Media Recorder
   useEffect(() => {
+    if (!hasStarted) return;
     const bootCamera = async () => {
+      // Explicitly request microphone permission first to ensure SpeechRecognition works flawlessly
+      try {
+        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // We just needed permission, we can stop this specific stream since useSpeechRecognition handles its own
+        audioStream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.warn('Microphone permission denied', err);
+        setError('Microphone permission is required for the AI to hear you.');
+      }
+
       const ok = await face.startCamera();
-      if (ok) {
-        pushEvent('Camera connected');
-        if (videoRef.current && videoRef.current.srcObject) {
-          try {
-            const stream = videoRef.current.srcObject;
-            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-            mediaRecorder.ondataavailable = (e) => {
-              if (e.data.size > 0) chunksRef.current.push(e.data);
-            };
-            mediaRecorder.onstop = () => {
-              const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-              setRecordingUrl(URL.createObjectURL(blob));
-            };
-            mediaRecorderRef.current = mediaRecorder;
-            mediaRecorder.start();
-            pushEvent('Recording started');
-          } catch (err) {
-            console.error('Recording failed to start', err);
-          }
+      if (ok && videoRef.current && videoRef.current.srcObject) {
+        try {
+          const stream = videoRef.current.srcObject;
+          const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunksRef.current.push(e.data);
+          };
+          mediaRecorderRef.current = mediaRecorder;
+          mediaRecorder.start();
+        } catch (err) {
+          console.error('Recording failed to start', err);
         }
       }
     };
-
     bootCamera();
-
     return () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
@@ -148,151 +216,120 @@ function LiveInterviewPage() {
       face.stopCamera();
       speech.stop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasStarted]);
 
+  // Sync transcript from speech recognition
   useEffect(() => {
-    setTranscript(speech.fullTranscript);
+    if (speech.fullTranscript) {
+      setTranscript(speech.fullTranscript);
+    }
   }, [speech.fullTranscript]);
 
+  // Stop if timer expires
   useEffect(() => {
     if (timer.isExpired && speech.isListening) {
       speech.stop();
-      pushEvent('Time limit reached - voice capture stopped');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timer.isExpired, speech.isListening]);
 
+  // Handle Next Question setup
   useEffect(() => {
-    if (!currentQuestion) {
-      return;
-    }
+    if (!currentQuestion || !hasStarted) return;
+    
+    console.log(`[Interview Flow] Setting up question ${answeredCount + 1}`);
     setTranscript('');
-    const initialCode = currentQuestion.starterCode?.[language] || '// Write your solution here...\n';
-    setCode(initialCode);
     speech.resetTranscript();
     timer.reset();
-    setLatestEvaluation(null);
-    pushEvent(`Question ${answeredCount + 1} ready`);
     
-    setTextToSpeak(`${interviewerLine ? interviewerLine + ' ' : ''}${currentQuestion.text}`);
-    setIsAvatarSpeaking(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentQuestion?.questionId]);
+    const aiText = answeredCount === 0 
+      ? "Hello. Welcome to your interview. I am your AI interviewer. Let's begin. Tell me about yourself." 
+      : currentQuestion.text;
 
-  const liveVoiceMetrics = useMemo(() => {
-    if (!transcript.trim()) {
-      return {
-        wpm: 0,
-        clarityScore: 0,
-        fluencyScore: 0,
-      };
+    setChatHistory(prev => [...prev, { role: 'ai', text: aiText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    setTextToSpeak(aiText);
+    setIsAvatarSpeaking(true);
+    hasRepeatedRef.current = false;
+    if (noResponseTimeoutRef.current) {
+      clearTimeout(noResponseTimeoutRef.current);
+      noResponseTimeoutRef.current = null;
     }
-    const activeDuration = Math.max(1, ANSWER_TIME_LIMIT - timer.timeLeft);
-    const metrics = analyzeVoiceMetrics({ transcript, durationSec: activeDuration });
-    return {
-      wpm: metrics.wpm || 0,
-      clarityScore: metrics.clarityScore || 0,
-      fluencyScore: metrics.fluencyScore || 0,
-    };
-  }, [transcript, timer.timeLeft]);
+  }, [currentQuestion?.questionId, hasStarted]);
 
   const totalQuestions = interview?.questions?.length || 0;
-  const currentIndex = currentQuestion ? answeredCount + 1 : answeredCount;
-  const progressPercent = totalQuestions ? Math.round((answeredCount / totalQuestions) * 100) : 0;
   const completedAll = !currentQuestion && answeredCount >= totalQuestions && totalQuestions > 0;
 
   useEffect(() => {
-    if (completedAll) {
-      setTextToSpeak('Interview completed. Please generate your final report.');
+    if (completedAll && hasStarted) {
+      const msg = 'Interview completed. Please end the interview to see your feedback.';
+      setChatHistory(prev => [...prev, { role: 'ai', text: msg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+      setTextToSpeak(msg);
       setIsAvatarSpeaking(true);
     }
-  }, [completedAll]);
+  }, [completedAll, hasStarted]);
 
-  const onStartListening = () => {
+  // Toggle listening state
+  const toggleListening = () => {
     setError('');
-    speech.start();
-    pushEvent('Voice capture started');
-  };
-
-  const onStopListening = () => {
-    speech.stop();
-    pushEvent('Voice capture stopped');
-  };
-
-  const onSubmitAnswer = async () => {
-    if (!currentQuestion) {
-      return;
+    if (speech.isListening) {
+      speech.stop();
+    } else {
+      speech.start();
     }
+  };
 
-    if (!transcript || transcript.trim().length < 10) {
+  const onSubmitAnswer = async (forced = false) => {
+    const isForced = typeof forced === 'boolean' ? forced : false;
+    if (!currentQuestion || isSubmitting) return;
+    if (!isForced && (!transcript || transcript.trim().length < 4)) {
       setError('Answer is too short. Please speak or type a detailed response.');
       return;
     }
 
+    if (noResponseTimeoutRef.current) {
+      clearTimeout(noResponseTimeoutRef.current);
+      noResponseTimeoutRef.current = null;
+    }
+
+    console.log('[Interview Flow] Submitting answer to backend...', transcript);
     setIsSubmitting(true);
     setError('');
+    speech.stop();
+
+    const answerText = transcript.trim() || 'No response provided.';
+    setChatHistory(prev => [...prev, { role: 'candidate', text: answerText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+    setTranscript('');
+    speech.resetTranscript();
 
     try {
       const durationSec = ANSWER_TIME_LIMIT - timer.timeLeft;
-      const voiceMetrics = analyzeVoiceMetrics({ transcript, durationSec });
+      const voiceMetrics = analyzeVoiceMetrics({ transcript: answerText, durationSec });
 
-      const payload = isCodingInterview
-        ? {
-            questionId: currentQuestion.questionId,
-            code,
-            language,
-            durationSec,
-          }
-        : {
-            questionId: currentQuestion.questionId,
-            transcript,
-            durationSec,
-            facialMetrics: face.metrics,
-            voiceMetrics,
-          };
+      const payload = {
+        questionId: currentQuestion.questionId,
+        transcript: answerText,
+        durationSec,
+        facialMetrics: face.metrics,
+        voiceMetrics,
+      };
 
+      console.log('[Interview Flow] API Call: submitInterviewAnswer');
       const result = await submitInterviewAnswer(id, payload);
-
-      setLatestEvaluation(result.evaluation);
+      console.log('[Interview Flow] API Response received, next question:', result.nextQuestion?.text);
       setAnsweredCount(result.answered);
-      setInterviewerLine(result.nextQuestion?.encouragement || result.evaluation?.encouragement || '');
-      pushEvent(`Question ${result.answered} submitted`);
 
       if (result.isCompleted || !result.nextQuestion) {
         setCurrentQuestion(null);
-        pushEvent('All questions completed');
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
         }
         return;
       }
-
       setCurrentQuestion(result.nextQuestion);
     } catch (requestError) {
+      console.error('[Interview Flow] API Error:', requestError);
       setError(requestError.response?.data?.message || 'Failed to submit answer');
     } finally {
       setIsSubmitting(false);
-      speech.stop();
-    }
-  };
-
-  const onRunCode = async () => {
-    if (!currentQuestion) return;
-    setIsRunningCode(true);
-    setRunResult(null);
-    setConsoleTab('result');
-    try {
-      const data = await runCode({
-        language,
-        code,
-        testCases: currentQuestion.testCases
-      });
-      setRunResult(data);
-    } catch (e) {
-      setRunResult({ success: false, compilationError: e.response?.data?.message || e.message || 'Error executing code' });
-    } finally {
-      setIsRunningCode(false);
     }
   };
 
@@ -305,636 +342,304 @@ function LiveInterviewPage() {
     }
   };
 
-  const onGenerateInterviewReport = async () => {
-    setError('');
-    setIsGeneratingReport(true);
-    try {
-      await completeInterview(id);
-      navigate(`/report/${id}`);
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Unable to generate interview report');
-    } finally {
-      setIsGeneratingReport(false);
-    }
+  if (!interview) {
+    return (
+      <div className="h-screen w-full bg-white flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#DBEAFE] border-t-[#2563EB] rounded-full animate-spin mb-4" />
+        <p className="text-[#64748B] font-medium animate-pulse">Loading interview...</p>
+      </div>
+    );
+  }
+
+  if (!hasStarted) {
+    return (
+      <div className="h-screen w-full bg-white flex flex-col items-center justify-center p-6">
+        <div className="max-w-xl w-full bg-[#FFFFFF] rounded-[32px] p-10 shadow-[0_4px_10px_rgba(15,23,42,0.06)] text-center space-y-10 border border-[#E2E8F0]">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-[#0F172A] mb-4 tracking-tight">AI Interview</h1>
+            <p className="text-[#64748B] text-lg">Please select your preferred AI interviewer.</p>
+          </div>
+          
+          <div className="flex justify-center gap-8">
+            <button
+              onClick={() => setInterviewerGender('female')}
+              className={`flex flex-col items-center p-6 rounded-[24px] border-2 transition-all w-40 ${
+                interviewerGender === 'female' 
+                  ? 'border-[#2563EB] bg-[#EFF6FF] shadow-[0_4px_10px_rgba(15,23,42,0.06)] scale-105' 
+                  : 'border-[#E2E8F0] hover:border-[#BFDBFE] hover:bg-[#F7F9FC]'
+              }`}
+            >
+              <img src="/assets/interviewers/female.png" alt="Female" className="w-24 h-24 rounded-full object-cover mb-4 shadow-sm" />
+              <span className={`font-bold text-lg ${interviewerGender === 'female' ? 'text-[#2563EB]' : 'text-[#64748B]'}`}>Female</span>
+            </button>
+            <button
+              onClick={() => setInterviewerGender('male')}
+              className={`flex flex-col items-center p-6 rounded-[24px] border-2 transition-all w-40 ${
+                interviewerGender === 'male' 
+                  ? 'border-[#2563EB] bg-[#EFF6FF] shadow-[0_4px_10px_rgba(15,23,42,0.06)] scale-105' 
+                  : 'border-[#E2E8F0] hover:border-[#BFDBFE] hover:bg-[#F7F9FC]'
+              }`}
+            >
+              <img src="/assets/interviewers/male.png" alt="Male" className="w-24 h-24 rounded-full object-cover mb-4 shadow-sm" />
+              <span className={`font-bold text-lg ${interviewerGender === 'male' ? 'text-[#2563EB]' : 'text-[#64748B]'}`}>Male</span>
+            </button>
+          </div>
+
+          <button
+            onClick={() => setHasStarted(true)}
+            className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-lg py-4 rounded-[16px] shadow-[0_4px_10px_rgba(15,23,42,0.06)] transition-all hover:shadow-md hover:-translate-y-0.5"
+          >
+            Start Interview
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // UI Status
+  const getAvatarStatus = () => {
+    if (isSubmitting) return { text: 'Processing...', color: 'bg-[#F59E0B] text-white' };
+    if (isAvatarSpeaking) return { text: 'Speaking...', color: 'bg-[#2563EB] text-white' };
+    if (speech.isListening) return { text: 'Listening...', color: 'bg-[#22C55E] text-white' };
+    return { text: 'Thinking...', color: 'bg-[#F59E0B] text-white' };
   };
-
-  const onSkipQuestion = async () => {
-    if (!currentQuestion) {
-      return;
-    }
-
-    setError('');
-    setIsSkipping(true);
-
-    try {
-      const result = await skipInterviewQuestion(id, {
-        questionId: currentQuestion.questionId,
-        reason: 'Skipped by candidate from live interview screen',
-      });
-
-      setAnsweredCount(result.answered);
-      setLatestEvaluation(null);
-      setInterviewerLine(result.nextQuestion?.encouragement || 'No problem, let us continue with a simpler follow-up.');
-      speech.stop();
-      pushEvent(`Question ${result.answered} skipped`);
-
-      if (result.isCompleted || !result.nextQuestion) {
-        setCurrentQuestion(null);
-        pushEvent('All questions completed');
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-          mediaRecorderRef.current.stop();
-        }
-        return;
-      }
-
-      setCurrentQuestion(result.nextQuestion);
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Failed to skip question');
-    } finally {
-      setIsSkipping(false);
-    }
-  };
-
-  // ── Violation type → display colour map ─────────────────────────────────
-  const violationColor = {
-    no_face: 'from-rose-700 to-rose-500',
-    multiple_faces: 'from-fuchsia-700 to-fuchsia-500',
-    looking_away: 'from-amber-700 to-amber-500',
-    long_eye_closure: 'from-orange-700 to-orange-500',
-    tab_switch: 'from-red-700 to-red-500',
-    window_blur: 'from-red-700 to-red-500',
-    copy_paste: 'from-violet-700 to-violet-500',
-  };
+  const status = getAvatarStatus();
 
   return (
-    <AppShell title="Live Interview" subtitle="Real-time interview simulation with voice, face, and instant feedback.">
-      {/* ── Proctoring Warning Banner ───────────────────────────────────── */}
-      {proctoring.activeWarning && (
-        <div
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-[99999] animate-bounce-once`}
-          style={{ minWidth: '340px', maxWidth: '96vw' }}
-        >
-          <div
-            className={`flex items-center gap-3 rounded-2xl bg-gradient-to-r ${
-              violationColor[proctoring.activeWarning.type] || 'from-rose-700 to-rose-500'
-            } px-5 py-3.5 shadow-2xl border border-white/20`}
+    <div className="h-screen w-full font-sans flex flex-col overflow-hidden bg-[#F7F9FC] text-[#0F172A]">
+      
+      {/* ── Top Header ─────────────────────────────────────────────────── */}
+      <header className="flex-none flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] z-20 shadow-sm bg-[#FFFFFF]">
+        <div className="flex items-center gap-4">
+          <h1 className="text-[24px] font-bold text-[#0F172A] tracking-tight">AI Interview</h1>
+          <span className="text-[13px] px-3 py-1 bg-[#DBEAFE] border border-[#BFDBFE] text-[#1D4ED8] rounded-full font-bold uppercase tracking-wider">
+            {interview?.setup?.jobRole || 'Interview'}
+          </span>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 bg-[#FFFFFF] border border-[#E2E8F0] px-4 py-2 rounded-xl shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+            <span className="text-[10px] text-[#64748B] font-bold uppercase tracking-widest">Timer</span>
+            <span className={`text-lg font-mono font-bold leading-none ${timer.timeLeft <= 30 ? 'text-[#EF4444]' : timer.timeLeft <= 60 ? 'text-[#F59E0B]' : 'text-[#2563EB]'}`}>{timer.display}</span>
+          </div>
+          <button
+            type="button"
+            className="bg-[#EF4444] text-white hover:bg-red-600 px-5 py-2 rounded-[12px] font-bold transition-all disabled:opacity-50 text-[13px] shadow-[0_4px_10px_rgba(15,23,42,0.06)]"
+            onClick={onFinishInterview}
+            disabled={isSubmitting || isGeneratingReport}
           >
-            <span className="text-2xl animate-pulse">🚨</span>
-            <div>
-              <p className="text-sm font-bold text-white leading-tight">{proctoring.activeWarning.message}</p>
-              <p className="text-xs text-white/70 mt-0.5">This violation has been recorded in your interview report.</p>
+            End Interview
+          </button>
+        </div>
+      </header>
+
+      {/* ── Main Layout ───────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        
+        {isFacePaused && (
+          <div className="absolute inset-0 z-50 bg-[#FFFFFF]/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center transition-all duration-300">
+             <div className="w-20 h-20 mb-6 bg-[#FEE2E2] text-[#EF4444] rounded-full flex items-center justify-center animate-pulse">
+               <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+               </svg>
+             </div>
+             <h2 className="text-3xl font-bold text-[#0F172A] mb-4 tracking-tight">Face Not Detected</h2>
+             <p className="text-lg text-[#64748B] max-w-md font-medium leading-relaxed">
+               We haven't detected your face for 10 seconds. The interview is paused. Please return to the camera view to continue.
+             </p>
+          </div>
+        )}
+
+        {/* Left Column: Interview & Chat */}
+        <div className="flex-1 lg:w-[70%] xl:w-[75%] flex flex-col relative w-full h-full border-r border-[#E2E8F0] bg-[#FFFFFF]">
+          
+          {/* FIXED Avatar & Microphone Center Container */}
+          <div className="flex-none pt-5 pb-3 border-b border-[#E2E8F0] flex flex-col items-center justify-center space-y-1.5 z-20 bg-[#FFFFFF]">
+            <InterviewerAvatar 
+              textToSpeak={textToSpeak} 
+              onSpeechEnd={handleAvatarSpeechEnd} 
+              isListening={speech.isListening} 
+              isThinking={isSubmitting}
+              gender={interviewerGender}
+            />
+            
+            <div className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full ${status.color}`}>
+              {status.text}
+            </div>
+
+            {/* Microphone directly below Avatar */}
+            <button
+              type="button"
+              onClick={toggleListening}
+              disabled={!speech.isSupported || isSubmitting || completedAll || isAvatarSpeaking}
+              className={`w-[60px] h-[60px] mt-1 flex items-center justify-center rounded-full transition-all duration-300 shadow-[0_4px_10px_rgba(15,23,42,0.06)] border border-[#E2E8F0] bg-[#FFFFFF] ${
+                speech.isListening 
+                  ? 'text-[#22C55E] animate-pulse border-[#22C55E]' 
+                  : isSubmitting || isAvatarSpeaking
+                    ? 'text-[#64748B] opacity-50 cursor-not-allowed'
+                    : 'text-[#2563EB] hover:bg-[#EFF6FF]'
+              }`}
+            >
+              {speech.isListening ? (
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm3 2a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+              )}
+            </button>
+          </div>
+
+          {/* Scrollable Conversation Area */}
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-[12px] custom-scrollbar relative z-10 pb-40">
+            
+            {/* Chat Bubbles */}
+            {chatHistory.map((msg, idx) => (
+              <div key={idx} className={`flex flex-col ${msg.role === 'ai' ? 'items-start' : 'items-end'}`}>
+                <div className="flex items-end gap-2 mb-1">
+                  <span className="text-[12px] font-bold text-[#64748B] uppercase tracking-widest">{msg.role === 'ai' ? 'AI Interviewer' : 'You'}</span>
+                  <span className="text-[12px] font-medium text-[#64748B]">{msg.time}</span>
+                </div>
+                <div className={`p-[16px] leading-relaxed whitespace-pre-wrap shadow-[0_4px_10px_rgba(15,23,42,0.06)] ${
+                  msg.role === 'ai' 
+                    ? 'max-w-[58%] text-[16px] bg-[#FFFFFF] text-[#0F172A] border border-[#E2E8F0] rounded-[18px] rounded-tl-sm' 
+                    : 'max-w-[52%] text-[15px] bg-[#DBEAFE] text-[#0F172A] rounded-[18px] rounded-tr-sm'
+                }`}>
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+
+            {/* Real-time speech transcript placeholder */}
+            {speech.isListening && (transcript || speech.interimText) && (
+              <div className="flex flex-col items-end opacity-80">
+                <div className="p-[16px] max-w-[52%] text-[15px] leading-relaxed whitespace-pre-wrap shadow-[0_4px_10px_rgba(15,23,42,0.06)] bg-[#DBEAFE] text-[#0F172A] rounded-[18px] rounded-tr-sm">
+                  {transcript} {speech.interimText}
+                  <span className="ml-1 inline-block w-1.5 h-4 bg-[#2563EB] animate-pulse align-middle"></span>
+                </div>
+              </div>
+            )}
+
+            {isSubmitting && (
+              <div className="flex flex-col items-end">
+                <div className="p-[16px] rounded-[18px] rounded-tr-sm bg-[#FFFFFF] border border-[#E2E8F0] text-[#64748B] text-[15px] font-medium flex items-center gap-2 shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+                  <div className="w-4 h-4 border-2 border-[#CBD5E1] border-t-[#64748B] rounded-full animate-spin" />
+                  Processing...
+                </div>
+              </div>
+            )}
+
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Fixed Input Area at Bottom */}
+          <div className="absolute bottom-0 left-0 right-0 border-t border-[#E2E8F0] p-4 z-20 flex justify-center bg-[#F7F9FC]">
+            <div className="w-[78%] flex flex-col items-center">
+              {error && (
+              <div className="mb-2 w-full bg-[#FEE2E2] text-[#EF4444] px-4 py-2 rounded-lg text-[13px] font-bold border border-[#FCA5A5] flex items-center justify-between shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+                <span>{error}</span>
+                <button onClick={() => setError('')} className="p-1 hover:bg-[#FECACA] rounded-full"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+              </div>
+            )}
+            
+            <div className="w-full relative flex items-center gap-3 px-3 py-2 min-h-[56px] rounded-[16px] border border-[#CBD5E1] transition-all focus-within:bg-[#FFFFFF] focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-50 bg-[#FFFFFF] shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+              
+              {/* Text Input */}
+              <textarea
+                ref={inputRef}
+                className="flex-1 max-h-32 bg-transparent border-0 py-2 text-[15px] focus:outline-none focus:ring-0 resize-none placeholder:text-[#64748B] font-medium text-[#0F172A]"
+                placeholder={isAvatarSpeaking ? "Listen to the question..." : "Speak or type your answer..."}
+                rows={1}
+                value={transcript}
+                onChange={(e) => {
+                  if (speech.isListening) {
+                    speech.stop();
+                  }
+                  setTranscript(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                disabled={completedAll || isSubmitting || isAvatarSpeaking}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (transcript.trim().length >= 5) onSubmitAnswer();
+                  }
+                }}
+              />
+
+              {/* Send Button */}
+              <button
+                onClick={onSubmitAnswer}
+                disabled={isSubmitting || !transcript || transcript.trim().length < 5 || isAvatarSpeaking}
+                className={`flex-none w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 ${
+                  !isSubmitting && transcript.trim().length >= 5 && !isAvatarSpeaking
+                    ? 'bg-[#2563EB] hover:bg-blue-700 text-white shadow-[0_4px_10px_rgba(15,23,42,0.06)] hover:-translate-y-0.5'
+                    : 'bg-[#E2E8F0] text-[#64748B] cursor-not-allowed'
+                }`}
+              >
+                <svg className="w-5 h-5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+              </button>
+            </div>
+            
+            <div className="flex justify-between items-center mt-2 px-2 text-[10px] font-bold text-[#64748B] tracking-wider uppercase">
+              <span>Voice inputs automatically submit after a brief pause</span>
+              <span>
+                <kbd className="font-mono bg-[#E2E8F0] px-1 py-0.5 rounded text-[#64748B]">Enter</kbd> to send, <kbd className="font-mono bg-[#E2E8F0] px-1 py-0.5 rounded text-[#64748B]">Shift+Enter</kbd> for new line
+              </span>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {!interview ? (
-        <p className="glass-card p-4 text-slate-300">Loading interview session...</p>
-      ) : isCodingInterview ? (
-        <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-120px)] w-full">
-           <div className="w-full lg:w-2/5 flex flex-col gap-4">
-              <div className="glass-card p-4 flex-shrink-0">
-                  <div className="flex justify-between items-center text-xs text-slate-400 mb-2">
-                     <span>Question {currentIndex} of {totalQuestions}</span>
-                     <span className="bg-slate-800 px-2 py-1 rounded text-amber-300 font-mono">{timer.display}</span>
-                  </div>
-                  <h2 className="text-xl font-bold text-white">{currentQuestion?.text || 'No pending question'}</h2>
-                  <div className="mt-2 flex gap-2">
-                     <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                        currentQuestion?.difficulty === 'hard' ? 'bg-rose-500/20 text-rose-300' :
-                        currentQuestion?.difficulty === 'medium' ? 'bg-amber-500/20 text-amber-300' :
-                        'bg-emerald-500/20 text-emerald-300'
-                     }`}>
-                        {currentQuestion?.difficulty?.toUpperCase() || 'EASY'}
-                     </span>
-                  </div>
-              </div>
-
-              <div className="glass-card p-5 flex-1 overflow-y-auto custom-scrollbar text-sm text-slate-300 space-y-5">
-                 {completedAll ? (
-                   <div className="text-center py-10">
-                     <p className="text-xl text-brand-100 mb-4">All questions completed!</p>
-                     <button className="primary-btn" onClick={onGenerateInterviewReport} disabled={isGeneratingReport}>
-                        {isGeneratingReport ? 'Generating Report...' : 'Generate Interview Report'}
-                     </button>
-                   </div>
-                 ) : currentQuestion ? (
-                   <>
-                     <div className="whitespace-pre-wrap leading-relaxed text-slate-200">
-                        {currentQuestion.description}
-                     </div>
-
-                     {currentQuestion.examples && currentQuestion.examples.length > 0 && (
-                        <div className="space-y-3">
-                          <p className="font-semibold text-white uppercase tracking-wider text-xs">Examples</p>
-                          {currentQuestion.examples.map((ex, i) => (
-                            <div key={i} className="bg-slate-800/80 rounded-lg p-3 border border-slate-700 font-mono text-xs space-y-1">
-                              <p><strong className="text-slate-400">Input:</strong> <span className="text-emerald-300">{ex.input}</span></p>
-                              <p><strong className="text-slate-400">Output:</strong> <span className="text-brand-300">{ex.output}</span></p>
-                              {ex.explanation && <p className="text-slate-400 mt-2"><strong className="text-slate-500">Explanation:</strong> {ex.explanation}</p>}
-                            </div>
-                          ))}
-                        </div>
-                     )}
-
-                     {currentQuestion.constraints && currentQuestion.constraints.length > 0 && (
-                        <div>
-                          <p className="font-semibold text-white uppercase tracking-wider text-xs mb-2">Constraints</p>
-                          <ul className="list-disc list-inside text-xs text-slate-400 space-y-1">
-                            {currentQuestion.constraints.map((c, i) => (
-                              <li key={i} className="font-mono bg-slate-800/50 inline-block px-2 py-0.5 rounded mr-2 mb-1">{c}</li>
-                            ))}
-                          </ul>
-                        </div>
-                     )}
-                   </>
-                 ) : null}
-              </div>
-           </div>
-
-           <div className="w-full lg:w-3/5 flex flex-col gap-4">
-              <div className="glass-card flex-1 flex flex-col overflow-hidden">
-                 <div className="flex justify-between items-center p-3 border-b border-slate-700 bg-slate-900/50">
-                    <select 
-                        className="bg-slate-800 text-slate-200 text-sm rounded-md px-3 py-1.5 border border-slate-700 outline-none focus:border-brand-500 transition-colors" 
-                        value={language} 
-                        onChange={(e) => {
-                          const newLang = e.target.value;
-                          setLanguage(newLang);
-                          if (currentQuestion && currentQuestion.starterCode) {
-                             setCode(currentQuestion.starterCode[newLang] || '// Write your solution here...\n');
-                          }
-                        }}
-                      >
-                        <option value="javascript">JavaScript</option>
-                        <option value="python">Python</option>
-                        <option value="java">Java</option>
-                        <option value="cpp">C++</option>
-                    </select>
-                    <div className="flex gap-2">
-                       <button className="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-1.5 rounded-md text-sm transition-colors flex items-center gap-2" onClick={onRunCode} disabled={isRunningCode || completedAll || !currentQuestion}>
-                          {isRunningCode ? (
-                            <><span className="animate-spin inline-block w-3 h-3 border-2 border-white/20 border-t-white rounded-full"></span> Running...</>
-                          ) : (
-                            <>▶ Run Code</>
-                          )}
-                       </button>
-                       <button className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition-colors" onClick={onSubmitAnswer} disabled={isSubmitting || completedAll || !currentQuestion}>
-                          {isSubmitting ? 'Evaluating...' : 'Submit Solution'}
-                       </button>
-                       <button className="bg-amber-600/20 text-amber-500 hover:bg-amber-600/30 px-3 py-1.5 rounded-md text-sm font-semibold transition-colors" onClick={onSkipQuestion} disabled={isSkipping || completedAll || !currentQuestion}>
-                          Skip
-                       </button>
-                    </div>
-                 </div>
-                 
-                 <div className="flex-1 bg-[#1e1e1e] p-2">
-                    <Editor
-                      height="100%"
-                      language={language}
-                      theme="vs-dark"
-                      value={code}
-                      onChange={(value) => setCode(value || '')}
-                      options={{ minimap: { enabled: false }, fontSize: 14, scrollBeyondLastLine: false, padding: { top: 16 } }}
-                    />
-                 </div>
-              </div>
-
-              <div className="glass-card h-64 flex flex-col flex-shrink-0">
-                 <div className="flex gap-4 p-2 border-b border-slate-700 bg-slate-900/30">
-                    <button className={`px-4 py-1.5 text-sm rounded-md transition-colors ${consoleTab === 'testcases' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`} onClick={() => setConsoleTab('testcases')}>Test Cases</button>
-                    <button className={`px-4 py-1.5 text-sm rounded-md transition-colors ${consoleTab === 'result' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`} onClick={() => setConsoleTab('result')}>Test Result</button>
-                 </div>
-                 
-                 <div className="flex-1 p-4 overflow-y-auto custom-scrollbar bg-slate-900/50 text-sm">
-                    {consoleTab === 'testcases' && currentQuestion?.testCases && (
-                       <div className="space-y-4">
-                          {currentQuestion.testCases.map((tc, idx) => (
-                             <div key={idx} className="space-y-2">
-                                <p className="text-slate-400 text-xs font-semibold uppercase">Test Case {idx + 1}</p>
-                                <div className="bg-slate-800 rounded p-2 font-mono text-xs">
-                                   <div className="text-slate-500">Input:</div>
-                                   <div className="text-slate-200">{tc.input}</div>
-                                </div>
-                             </div>
-                          ))}
-                       </div>
-                    )}
-                    {consoleTab === 'result' && (
-                       <div>
-                          {isRunningCode ? (
-                             <div className="flex items-center gap-3 text-slate-400">
-                                <span className="animate-spin inline-block w-4 h-4 border-2 border-slate-500 border-t-brand-400 rounded-full"></span>
-                                Running Test Cases...
-                             </div>
-                          ) : runResult ? (
-                             runResult.compilationError ? (
-                                <div>
-                                   <p className="text-rose-400 font-bold mb-2">Compilation / Runtime Error</p>
-                                   <pre className="bg-rose-950/30 text-rose-200 p-3 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono border border-rose-900/50">{runResult.compilationError}</pre>
-                                </div>
-                             ) : (
-                                <div>
-                                   <div className="flex items-center gap-4 mb-4">
-                                      <span className={`text-lg font-bold ${runResult.passed === runResult.total ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                         {runResult.passed === runResult.total ? 'Accepted' : 'Wrong Answer'}
-                                      </span>
-                                      <span className="text-slate-400 text-xs">Runtime: {runResult.executionTime} | Memory: {runResult.memory}</span>
-                                   </div>
-                                   
-                                   <div className="space-y-4">
-                                      {runResult.testResults?.map((res, idx) => (
-                                         <div key={idx} className="border border-slate-700 rounded-lg overflow-hidden">
-                                            <div className={`px-3 py-1.5 text-xs font-bold uppercase flex justify-between ${res.passed ? 'bg-emerald-950/30 text-emerald-400' : 'bg-rose-950/30 text-rose-400'}`}>
-                                               <span>Test Case {idx + 1}</span>
-                                               <span>{res.passed ? 'PASS' : 'FAIL'}</span>
-                                            </div>
-                                            <div className="p-3 bg-slate-800 space-y-3 font-mono text-xs">
-                                               <div>
-                                                  <div className="text-slate-500 mb-1">Input:</div>
-                                                  <div className="bg-slate-900 px-2 py-1 rounded text-slate-300">{res.input}</div>
-                                               </div>
-                                               <div>
-                                                  <div className="text-slate-500 mb-1">Expected Output:</div>
-                                                  <div className="bg-slate-900 px-2 py-1 rounded text-emerald-300">{res.expected}</div>
-                                               </div>
-                                               <div>
-                                                  <div className="text-slate-500 mb-1">Your Output:</div>
-                                                  <div className={`bg-slate-900 px-2 py-1 rounded ${res.passed ? 'text-slate-300' : 'text-rose-300'}`}>{res.actual}</div>
-                                               </div>
-                                            </div>
-                                         </div>
-                                      ))}
-                                   </div>
-                                </div>
-                             )
-                          ) : (
-                             <p className="text-slate-500 text-center mt-10">Run your code to see results here.</p>
-                          )}
-                       </div>
-                    )}
-                 </div>
-              </div>
-           </div>
-        </div>
-      ) : (
-        <div className="relative grid gap-4 lg:pr-56">
-          <section className="space-y-4">
-            <div className="glass-card p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-slate-400">Interview Session</p>
-                  <p className="mt-1 text-sm text-slate-200">
-                    {(interview.setup.interviewType || 'technical').toUpperCase()} | {interview.setup.jobRole} | {interview.setup.topic} | {interview.setup.difficulty}
-                  </p>
+        {/* Right Column: LIVE Face Recognition */}
+        <div className="hidden lg:flex lg:w-[30%] xl:w-[25%] flex-col border-l border-[#E2E8F0] p-6 z-10 bg-[#FFFFFF] text-[#0F172A]">
+          
+          <div className="mb-6">
+            <h3 className="text-[13px] font-bold text-[#0F172A] uppercase tracking-widest flex items-center gap-2 mb-4 bg-[#FFFFFF] border border-[#E2E8F0] px-3 py-1 rounded-full w-max shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+              <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+              Live Camera
+            </h3>
+            
+            <div className={`relative w-full aspect-[4/3] bg-[#F7F9FC] rounded-[16px] overflow-hidden shadow-[0_4px_10px_rgba(15,23,42,0.06)] border transition-colors duration-500 flex flex-col justify-end p-3 ${face.isFaceDetected ? 'border-[#22C55E]' : 'border-[#F59E0B]'}`}>
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${face.status === 'Idle' ? 'opacity-0' : 'opacity-100'}`} 
+              />
+              
+              {/* Status Overlay */}
+              <div className="relative z-10 bg-[#FFFFFF] px-3 py-2 rounded-xl shadow-[0_4px_10px_rgba(15,23,42,0.06)] border border-[#E2E8F0] flex items-center justify-between">
+                <div className={`text-xs font-bold uppercase tracking-wider ${face.isFaceDetected ? 'text-[#22C55E]' : 'text-[#EF4444]'}`}>
+                  {face.faceStatus}
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-brand-500/20 px-3 py-1 text-xs font-semibold text-brand-100">
-                    <span className={`${speech.isListening ? 'animate-pulse' : ''}`}>●</span>
-                    {speech.isListening ? 'Recording Live' : 'Idle'}
-                  </span>
-                  <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-200">{timer.display}</span>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
-                  <span>
-                    Progress: {currentIndex}/{totalQuestions}
-                  </span>
-                  <span>{progressPercent}% completed</span>
-                </div>
-                <div className="h-2 rounded-full bg-slate-800">
-                  <div className="h-2 rounded-full bg-gradient-to-r from-brand-600 to-brand-400 transition-all" style={{ width: `${progressPercent}%` }} />
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {interview.questions.map((question, index) => {
-                  const isDone = index < answeredCount;
-                  const isActive = currentQuestion && question.questionId === currentQuestion.questionId;
-                  return (
-                    <span
-                      key={question.questionId}
-                      className={`rounded-full border px-2.5 py-1 text-xs ${
-                        isDone
-                          ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200'
-                          : isActive
-                            ? 'border-brand-500/40 bg-brand-500/15 text-brand-100'
-                            : 'border-slate-600 bg-slate-800/70 text-slate-300'
-                      }`}
-                    >
-                      Q{index + 1}
-                    </span>
-                  );
-                })}
+                <span className={`w-2 h-2 rounded-full ${face.isFaceDetected ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`} />
               </div>
             </div>
-
-            <div className="glass-card p-5">
-              <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 flex flex-col md:flex-row gap-6 items-center md:items-start">
-                <InterviewerAvatar 
-                  textToSpeak={textToSpeak} 
-                  onSpeechEnd={() => setIsAvatarSpeaking(false)} 
-                  isActive={speech.isListening} 
-                  gender={interview.setup.interviewerGender || 'female'}
-                />
-                <div className="flex-1 w-full">
-                  <p className="text-xs uppercase tracking-wider text-slate-400">Current Question</p>
-                  <p className="mt-2 text-lg text-white">{currentQuestion?.text || 'No pending question'}</p>
-                  {isCodingInterview && currentQuestion && (
-                    <div className="mt-4 text-sm text-slate-300 space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                      <div>
-                        <p className="whitespace-pre-wrap leading-relaxed">{currentQuestion.description}</p>
-                      </div>
-                      
-                      {currentQuestion.examples && currentQuestion.examples.length > 0 && (
-                        <div className="space-y-3">
-                          <p className="font-semibold text-white uppercase tracking-wider text-xs">Examples</p>
-                          {currentQuestion.examples.map((ex, i) => (
-                            <div key={i} className="bg-slate-800/80 rounded-lg p-3 border border-slate-700">
-                              <p><strong className="text-brand-300">Input:</strong> <span className="font-mono text-xs">{ex.input}</span></p>
-                              <p className="mt-1"><strong className="text-brand-300">Output:</strong> <span className="font-mono text-xs">{ex.output}</span></p>
-                              {ex.explanation && <p className="mt-1 text-slate-400 text-xs"><strong className="text-slate-300">Explanation:</strong> {ex.explanation}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {currentQuestion.constraints && currentQuestion.constraints.length > 0 && (
-                        <div>
-                          <p className="font-semibold text-white uppercase tracking-wider text-xs mb-2">Constraints</p>
-                          <ul className="list-disc list-inside text-xs text-slate-400 space-y-1">
-                            {currentQuestion.constraints.map((c, i) => (
-                              <li key={i} className="font-mono">{c}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {currentQuestion.testCases && currentQuestion.testCases.length > 0 && (
-                        <div>
-                          <p className="font-semibold text-white uppercase tracking-wider text-xs mb-2">Test Cases</p>
-                          <div className="bg-slate-800/80 rounded-lg overflow-hidden border border-slate-700">
-                            <table className="w-full text-left text-xs">
-                              <thead className="bg-slate-900/50">
-                                <tr>
-                                  <th className="p-2 font-medium text-slate-300">Input</th>
-                                  <th className="p-2 font-medium text-slate-300">Expected</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-700 font-mono">
-                                {currentQuestion.testCases.map((tc, i) => (
-                                  <tr key={i}>
-                                    <td className="p-2">{tc.input}</td>
-                                    <td className="p-2 text-emerald-400">{tc.expectedOutput}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {interviewerLine ? <p className="mt-4 text-sm font-semibold text-brand-300 italic">"{interviewerLine}"</p> : null}
+          </div>
+          
+          <div className="mt-4 flex-1">
+             <div className="space-y-3 mt-6">
+                <div className="flex items-center gap-3 text-[13px] font-bold text-[#0F172A] bg-[#FFFFFF] border border-[#E2E8F0] p-3 rounded-lg shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+                  <span className="w-2 h-2 flex-none rounded-full bg-[#22C55E]"></span>
+                  Camera Active
                 </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {!isCodingInterview && (
-                  <>
-                    <button
-                      type="button"
-                      className="primary-btn"
-                      onClick={onStartListening}
-                      disabled={!speech.isSupported || isSubmitting || isSkipping || isGeneratingReport || completedAll}
-                    >
-                      {speech.isListening ? 'Listening...' : 'Start Voice Capture'}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={onStopListening}
-                      disabled={isSubmitting || isSkipping || isGeneratingReport || completedAll}
-                    >
-                      Stop Voice Capture
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={onFinishInterview}
-                  disabled={isSubmitting || isSkipping || isGeneratingReport}
-                >
-                  End Interview
-                </button>
-                <button
-                  type="button"
-                  className="rounded-xl bg-amber-600 px-4 py-2.5 font-semibold text-white hover:bg-amber-500 transition disabled:opacity-60"
-                  onClick={onSkipQuestion}
-                  disabled={!currentQuestion || isSubmitting || isSkipping || isGeneratingReport}
-                >
-                  {isSkipping ? 'Skipping...' : 'Skip Question'}
-                </button>
-              </div>
-
-              {isCodingInterview ? (
-                <div className="mt-4">
-                  <div className="flex gap-2 mb-2">
-                    <select 
-                      className="soft-input py-1 text-sm w-40" 
-                      value={language} 
-                      onChange={(e) => {
-                        const newLang = e.target.value;
-                        setLanguage(newLang);
-                        if (currentQuestion && currentQuestion.starterCode) {
-                           setCode(currentQuestion.starterCode[newLang] || '// Write your solution here...\n');
-                        }
-                      }}
-                    >
-                      <option value="javascript">JavaScript</option>
-                      <option value="python">Python</option>
-                      <option value="java">Java</option>
-                      <option value="cpp">C++</option>
-                    </select>
-                  </div>
-                  <div className="rounded-lg overflow-hidden border border-slate-700 h-[400px]">
-                    <Editor
-                      height="100%"
-                      language={language}
-                      theme="vs-dark"
-                      value={code}
-                      onChange={(value) => setCode(value || '')}
-                      options={{ minimap: { enabled: false }, fontSize: 14 }}
-                    />
-                  </div>
+                <div className="flex items-center gap-3 text-[13px] font-bold text-[#0F172A] bg-[#FFFFFF] border border-[#E2E8F0] p-3 rounded-lg shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+                  <span className={`w-2 h-2 flex-none rounded-full ${face.isFaceDetected ? 'bg-[#22C55E]' : 'bg-[#EF4444]'}`}></span>
+                  Face Detected
                 </div>
-              ) : (
-                <>
-                  <textarea
-                    className="soft-input mt-4 h-44 resize-none"
-                    placeholder="Your transcript appears here. You can edit before submitting."
-                    value={transcript}
-                    onChange={(event) => setTranscript(event.target.value)}
-                    disabled={completedAll}
-                  />
-                  {speech.interimText ? <p className="mt-2 text-xs text-slate-400">Live draft: {speech.interimText}</p> : null}
-                  {speech.error ? <p className="mt-2 text-sm text-rose-400">{speech.error}</p> : null}
-                </>
-              )}
-
-              {error ? <p className="mt-2 text-sm text-rose-400">{error}</p> : null}
-
-              <button
-                type="button"
-                className="primary-btn mt-4"
-                onClick={onSubmitAnswer}
-                disabled={isSubmitting || isSkipping || isGeneratingReport || !currentQuestion}
-              >
-                {isSubmitting ? 'Evaluating...' : 'Submit Answer'}
-              </button>
-
-              {completedAll ? (
-                <div className="mt-5 rounded-xl border border-brand-500/30 bg-brand-500/10 p-4">
-                  <p className="text-sm text-brand-100">Interview completed. Generate your final report.</p>
-                  <button
-                    type="button"
-                    className="primary-btn mt-3 mr-3"
-                    onClick={onGenerateInterviewReport}
-                    disabled={isGeneratingReport}
-                  >
-                    {isGeneratingReport ? 'Generating Report...' : 'Generate Interview Report'}
-                  </button>
-                  {recordingUrl && (
-                    <div className="mt-4 p-4 bg-slate-900 rounded-lg border border-slate-700">
-                      <p className="text-sm text-slate-300 mb-2">Session Recording (Stored locally):</p>
-                      <video src={recordingUrl} controls className="w-full rounded mb-3 max-h-60" />
-                      <a 
-                        href={recordingUrl} 
-                        download="interview_recording.webm"
-                        className="secondary-btn inline-block text-center"
-                      >
-                        Download Recording
-                      </a>
-                    </div>
-                  )}
+                <div className="flex items-center gap-3 text-[13px] font-bold text-[#0F172A] bg-[#FFFFFF] border border-[#E2E8F0] p-3 rounded-lg shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+                  <span className="w-2 h-2 flex-none rounded-full bg-[#22C55E]"></span>
+                  Microphone Active
                 </div>
-              ) : null}
-
-              {latestEvaluation ? (
-                <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
-                  {isCodingInterview ? (
-                    <>
-                      <p className="text-emerald-200 font-semibold">
-                        Correctness: {latestEvaluation.correctnessScore} | Complexity: {latestEvaluation.complexityScore} | Quality: {latestEvaluation.qualityScore}
-                      </p>
-                      <p className="mt-2 text-emerald-100">{latestEvaluation.feedback}</p>
-                      {latestEvaluation.suggestions?.length > 0 && (
-                        <ul className="mt-2 list-disc list-inside text-emerald-100/80">
-                          {latestEvaluation.suggestions.map((s, i) => <li key={i}>{s}</li>)}
-                        </ul>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-emerald-200 font-semibold">
-                        Content: {latestEvaluation.contentScore} | Communication: {latestEvaluation.communicationScore}
-                      </p>
-                      <p className="mt-2 text-emerald-100">{latestEvaluation.feedback}</p>
-                    </>
-                  )}
+                <div className="flex items-center gap-3 text-[13px] font-bold text-[#0F172A] bg-[#FFFFFF] border border-[#E2E8F0] p-3 rounded-lg shadow-[0_4px_10px_rgba(15,23,42,0.06)]">
+                  <span className={`w-2 h-2 flex-none rounded-full ${speech.isListening ? 'bg-[#22C55E] animate-pulse' : 'bg-[#F59E0B]'}`}></span>
+                  AI Listening
                 </div>
-              ) : null}
-            </div>
-
-            {!isCodingInterview && (
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="glass-card p-4 space-y-3">
-                  <p className="text-sm font-semibold text-white">Live Signals</p>
-                  <SignalBar label="Eye Contact" value={face.metrics.eyeContactScore} colorClass="bg-cyan-500" />
-                  <SignalBar label="Confidence" value={face.metrics.confidenceScore} colorClass="bg-emerald-500" />
-                  <SignalBar label="Clarity" value={liveVoiceMetrics.clarityScore} colorClass="bg-blue-500" />
-                  <SignalBar label="Fluency" value={liveVoiceMetrics.fluencyScore} colorClass="bg-indigo-500" />
-                  <div className="rounded-lg bg-slate-800/80 p-2 text-xs text-slate-200">Speech Pace (WPM): {liveVoiceMetrics.wpm}</div>
-                  <p className="text-xs text-slate-400">{face.status}</p>
-                  {face.error ? <p className="text-xs text-rose-400">{face.error}</p> : null}
-                </div>
-
-                <div className="glass-card p-4">
-                  <p className="text-sm font-semibold text-white">Session Timeline</p>
-                  <div className="mt-3 space-y-2">
-                    {events.length ? (
-                      events.map((event, index) => (
-                        <div key={`${event.stamp}-${index}`} className="rounded-lg bg-slate-800/70 p-2">
-                          <p className="text-xs text-slate-200">{event.message}</p>
-                          <p className="mt-1 text-[11px] text-slate-400">{event.stamp}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-slate-400">Events will appear as you interact.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Proctoring Violations Log ─────────────────────────────── */}
-            {proctoring.violations.length > 0 && (
-              <div className="glass-card p-4 border-rose-500/30">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-rose-300 flex items-center gap-2">
-                    <span>🛡️</span> Proctoring Violations ({proctoring.violations.length})
-                  </p>
-                  <span className="text-xs text-slate-400">Recorded in report</span>
-                </div>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {proctoring.violations.map((v, i) => (
-                    <div
-                      key={`${v.type}-${i}`}
-                      className="flex items-start gap-2 rounded-lg bg-rose-500/10 border border-rose-500/20 px-3 py-2"
-                    >
-                      <span className="text-base mt-0.5">⚠</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-rose-200 font-medium">{v.message}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          {new Date(v.timestamp).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-
-          {!isCodingInterview && (
-            <section
-              className="z-[9999]"
-              style={{
-                position: 'fixed',
-                top: '84px',
-                right: '16px',
-                width: '180px',
-                height: '180px',
-              }}
-            >
-              <div className="glass-card h-full w-full overflow-hidden p-1 shadow-2xl">
-                <div className="relative h-full w-full">
-                  <video ref={videoRef} autoPlay muted playsInline className="h-full w-full rounded-lg bg-slate-900 object-cover" />
-                  {speech.isListening ? (
-                    <div className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-rose-500/90 px-3 py-1 text-xs font-semibold text-white">
-                      <span className="animate-pulse">●</span> LIVE
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </section>
-          )}
+             </div>
+          </div>
         </div>
-      )}
-    </AppShell>
+      </div>
+    </div>
   );
 }
 

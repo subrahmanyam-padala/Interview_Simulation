@@ -50,14 +50,15 @@ export const useProctoring = ({ videoRef, interviewId, onViolation, enabled = tr
       try {
         // nets may already be loaded by useFaceAnalysis – guard with .params check
         const loaded = (net) => net.params !== undefined;
+        const modelPath = 'https://justadudewhohacks.github.io/face-api.js/models';
         if (!loaded(faceapi.nets.tinyFaceDetector)) {
-          await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+          await faceapi.nets.tinyFaceDetector.loadFromUri(modelPath);
         }
         if (!loaded(faceapi.nets.faceLandmark68Net)) {
-          await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+          await faceapi.nets.faceLandmark68Net.loadFromUri(modelPath);
         }
         if (!loaded(faceapi.nets.faceExpressionNet)) {
-          await faceapi.nets.faceExpressionNet.loadFromUri('/models');
+          await faceapi.nets.faceExpressionNet.loadFromUri(modelPath);
         }
         if (!cancelled) setModelsReady(true);
       } catch (e) {

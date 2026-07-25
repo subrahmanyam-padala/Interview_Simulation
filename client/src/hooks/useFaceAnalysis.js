@@ -40,6 +40,8 @@ const computeMetrics = (result) => {
 
 export const useFaceAnalysis = (videoRef) => {
   const [modelState, setModelState] = useState('idle');
+  const [faceStatus, setFaceStatus] = useState('Face Recognition Active'); // UI specific status string
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
   const [metrics, setMetrics] = useState({
     eyeContactScore: 45,
     confidenceScore: 50,
@@ -54,15 +56,17 @@ export const useFaceAnalysis = (videoRef) => {
   useEffect(() => {
     const loadModels = async () => {
       try {
-        setModelState('loading');
-        const modelPath = '/models';
+        console.log('[FaceRecognition] Loading models from official CDN...');
+        const modelPath = 'https://justadudewhohacks.github.io/face-api.js/models';
         await Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
           faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
           faceapi.nets.faceExpressionNet.loadFromUri(modelPath),
         ]);
+        console.log('[FaceRecognition] Models loaded successfully.');
         setModelState('ready');
       } catch (modelError) {
+        console.error('[FaceRecognition] Model loading failed:', modelError);
         setModelState('fallback');
         setError('Face model files not found in /public/models. Facial analysis runs in fallback mode.');
         console.error(modelError);
@@ -83,17 +87,32 @@ export const useFaceAnalysis = (videoRef) => {
       }
 
       try {
-        const result = await faceapi
-          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+        const detections = await faceapi
+          .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
           .withFaceLandmarks()
           .withFaceExpressions();
 
-        setMetrics(computeMetrics(result));
+        if (detections.length === 0) {
+          if (faceStatus !== 'No Face Detected') console.log('[FaceRecognition] No face detected.');
+          setFaceStatus('No Face Detected');
+          setIsFaceDetected(false);
+        } else if (detections.length > 1) {
+          if (faceStatus !== 'Multiple Faces Detected') console.log('[FaceRecognition] Multiple faces detected.');
+          setFaceStatus('Multiple Faces Detected');
+          setIsFaceDetected(false);
+        } else {
+          if (faceStatus !== 'Face Detected') console.log('[FaceRecognition] Face detected. Tracking metrics.');
+          setFaceStatus('Face Detected');
+          setIsFaceDetected(true);
+          setMetrics(computeMetrics(detections[0]));
+        }
       } catch (detectError) {
         console.error(detectError);
+        setFaceStatus('Face Not Found');
+        setIsFaceDetected(false);
       }
 
-      frameLoopRef.current = window.setTimeout(detect, 700);
+      frameLoopRef.current = window.setTimeout(detect, 200);
     };
 
     detect();
@@ -116,9 +135,11 @@ export const useFaceAnalysis = (videoRef) => {
         await videoRef.current.play();
       }
 
+      setFaceStatus('Live Camera');
       return true;
     } catch (_error) {
       setError('Camera permission denied or unavailable.');
+      setFaceStatus('Camera Error');
       return false;
     }
   };
@@ -137,6 +158,9 @@ export const useFaceAnalysis = (videoRef) => {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    
+    setFaceStatus('Camera Stopped');
+    setIsFaceDetected(false);
   };
 
   const status = useMemo(() => {
@@ -154,6 +178,8 @@ export const useFaceAnalysis = (videoRef) => {
 
   return {
     status,
+    faceStatus,
+    isFaceDetected,
     metrics,
     error,
     startCamera,

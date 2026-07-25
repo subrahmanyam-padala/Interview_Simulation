@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Paperclip, Mic, Send, Copy, Check, Trash2, Plus, Menu, Edit2, RefreshCw, ThumbsUp, ThumbsDown, MoreHorizontal, MessageSquare, Bot } from 'lucide-react';
+
 import {
   clearCoachMessages,
   createCoachSession,
@@ -11,143 +16,106 @@ import {
 } from '../api/coachApi';
 import AppShell from '../components/AppShell';
 
-// ─── Quick prompt suggestions ────────────────────────────────────────────────
-const QUICK_PROMPTS = [
-  { icon: '💡', label: 'Explain Java Threads', prompt: 'Explain Java threads with a simple example and when to use them in interviews.' },
-  { icon: '🔐', label: 'JWT vs OAuth', prompt: 'What is the difference between JWT and OAuth? How do I answer this in a technical interview?' },
-  { icon: '🎤', label: 'Improve Communication', prompt: 'How can I improve my communication skills in technical interviews? Give me specific tips.' },
-  { icon: '⚙️', label: 'System Design Tips', prompt: 'How do I approach a system design question in an interview? Give me a step-by-step framework.' },
-  { icon: '🌟', label: 'STAR Method', prompt: 'Explain the STAR method for behavioral interviews with an example answer.' },
-  { icon: '🧠', label: 'DSA Strategy', prompt: 'What strategy should I use when I get stuck on a DSA coding question in an interview?' },
-];
-
-// ─── Tag color map ───────────────────────────────────────────────────────────
-const TAG_COLORS = [
-  'bg-cyan-500/15 border-cyan-500/30 text-cyan-300',
-  'bg-violet-500/15 border-violet-500/30 text-violet-300',
-  'bg-emerald-500/15 border-emerald-500/30 text-emerald-300',
-  'bg-amber-500/15 border-amber-500/30 text-amber-300',
-  'bg-rose-500/15 border-rose-500/30 text-rose-300',
-];
-
-// ─── Markdown-like renderer (simple, no deps) ────────────────────────────────
-function renderContent(text) {
-  const lines = text.split('\n');
-  const elements = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Code block
-    if (line.startsWith('```')) {
-      const lang = line.slice(3).trim() || 'code';
-      const codeLines = [];
-      i++;
-      while (i < lines.length && !lines[i].startsWith('```')) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      elements.push(
-        <div key={i} className="my-3 rounded-xl overflow-hidden border border-slate-700">
-          <div className="flex items-center justify-between bg-slate-800 px-3 py-1.5">
-            <span className="text-[11px] text-slate-400 font-mono uppercase">{lang}</span>
-          </div>
-          <pre className="bg-slate-950 p-4 overflow-x-auto text-sm text-emerald-300 font-mono leading-relaxed">
-            <code>{codeLines.join('\n')}</code>
-          </pre>
-        </div>
-      );
-      i++;
-      continue;
-    }
-
-    // Heading
-    if (line.startsWith('### ')) {
-      elements.push(<h4 key={i} className="text-sm font-bold text-white mt-3 mb-1">{line.slice(4)}</h4>);
-    } else if (line.startsWith('## ')) {
-      elements.push(<h3 key={i} className="text-base font-bold text-white mt-4 mb-1">{line.slice(3)}</h3>);
-    } else if (line.startsWith('# ')) {
-      elements.push(<h2 key={i} className="text-lg font-bold text-white mt-4 mb-2">{line.slice(2)}</h2>);
-    }
-    // Bullet
-    else if (line.startsWith('- ') || line.startsWith('* ')) {
-      elements.push(
-        <div key={i} className="flex gap-2 text-sm text-slate-200 leading-relaxed">
-          <span className="text-brand-400 mt-0.5 flex-shrink-0">•</span>
-          <span dangerouslySetInnerHTML={{ __html: inlineFormat(line.slice(2)) }} />
-        </div>
-      );
-    }
-    // Numbered list
-    else if (/^\d+\.\s/.test(line)) {
-      const num = line.match(/^(\d+)\./)[1];
-      elements.push(
-        <div key={i} className="flex gap-2 text-sm text-slate-200 leading-relaxed">
-          <span className="text-brand-400 font-bold flex-shrink-0 w-5">{num}.</span>
-          <span dangerouslySetInnerHTML={{ __html: inlineFormat(line.replace(/^\d+\.\s/, '')) }} />
-        </div>
-      );
-    }
-    // Bold heading line (e.g. **Title:**)
-    else if (line.startsWith('**') && line.endsWith('**')) {
-      elements.push(<p key={i} className="text-sm font-bold text-white mt-2" dangerouslySetInnerHTML={{ __html: inlineFormat(line) }} />);
-    }
-    // Empty line → spacer
-    else if (line.trim() === '') {
-      elements.push(<div key={i} className="h-2" />);
-    }
-    // Normal paragraph
-    else {
-      elements.push(
-        <p key={i} className="text-sm text-slate-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: inlineFormat(line) }} />
-      );
-    }
-    i++;
-  }
-  return <div className="space-y-0.5">{elements}</div>;
-}
-
-function inlineFormat(text) {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em class="text-slate-300 italic">$1</em>')
-    .replace(/`(.+?)`/g, '<code class="bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-xs font-mono text-emerald-300">$1</code>');
+// ─── Copy Code Button Component ──────────────────────────────────────────────
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 text-xs font-medium text-[#64748B] hover:text-white transition-colors"
+      title="Copy Code"
+    >
+      {copied ? <Check size={14} className="text-[#10B981]" /> : <Copy size={14} />}
+      {copied ? 'Copied' : 'Copy'}
+    </button>
+  );
 }
 
 // ─── Single message bubble ────────────────────────────────────────────────────
-function MessageBubble({ msg, isLatestAssistant }) {
+function MessageBubble({ msg }) {
   const isUser = msg.role === 'user';
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start`}>
-      {/* Avatar */}
-      <div
-        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-          isUser
-            ? 'bg-brand-500 text-white'
-            : 'bg-gradient-to-br from-cyan-500 to-violet-600 text-white'
-        }`}
-      >
-        {isUser ? 'U' : '🤖'}
-      </div>
+    <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start w-full max-w-[900px] mx-auto animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+      {/* Avatar (Optional for AI to add premium feel, omitting for User) */}
+      {!isUser && (
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#2563EB] to-[#0EA5E9] flex items-center justify-center text-white shadow-sm mt-1">
+          <Bot size={16} />
+        </div>
+      )}
 
       {/* Bubble */}
       <div
-        className={`max-w-[82%] rounded-2xl px-4 py-3 ${
+        className={`w-full ${
           isUser
-            ? 'bg-brand-500/20 border border-brand-500/30 rounded-tr-sm'
-            : `bg-slate-800/80 border border-slate-700/60 rounded-tl-sm ${isLatestAssistant ? 'ring-1 ring-cyan-500/20' : ''}`
+            ? 'max-w-[70%] bg-[#2563EB] text-white' 
+            : 'bg-[#F1F5F9] text-[#1E293B]'
         }`}
+        style={{
+          borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
+          padding: '16px'
+        }}
       >
         {isUser ? (
-          <p className="text-sm text-slate-100 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+          <p className="text-[16px] leading-relaxed whitespace-pre-wrap font-medium">{msg.content}</p>
         ) : (
-          renderContent(msg.content)
-        )}
-        {msg.createdAt && (
-          <p className={`text-[11px] mt-1.5 ${isUser ? 'text-brand-300/60 text-right' : 'text-slate-500'}`}>
-            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
+          <div className="flex flex-col gap-3">
+            <div className="prose prose-sm md:prose-base max-w-none text-[#1E293B]
+              prose-p:leading-relaxed prose-p:mb-4 last:prose-p:mb-0
+              prose-a:text-[#2563EB] prose-a:no-underline hover:prose-a:underline
+              prose-strong:text-[#1E293B] prose-strong:font-bold
+              prose-headings:text-[#1E293B] prose-headings:font-bold prose-headings:mt-6 prose-headings:mb-3
+              prose-code:text-[#EF4444] prose-code:bg-white prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none
+              prose-ul:my-4 prose-ul:list-disc prose-li:my-1
+              prose-table:w-full prose-table:border-collapse prose-th:border-b-2 prose-th:border-[#E2E8F0] prose-th:text-left prose-th:p-2 prose-td:border-b prose-td:border-[#E2E8F0] prose-td:p-2
+            ">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ node, inline, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const codeContent = String(children).replace(/\n$/, '');
+                    return !inline && match ? (
+                      <div className="my-4 rounded-[12px] overflow-hidden border border-[#1E293B] bg-[#0d1117]">
+                        <div className="flex items-center justify-between bg-[#1E293B] px-4 py-2 border-b border-black">
+                          <span className="text-xs font-mono text-[#64748B]">{match[1]}</span>
+                          <CopyButton text={codeContent} />
+                        </div>
+                        <SyntaxHighlighter
+                          style={atomDark}
+                          language={match[1]}
+                          PreTag="div"
+                          customStyle={{ margin: 0, padding: '16px', background: 'transparent', fontSize: '14px' }}
+                          {...props}
+                        >
+                          {codeContent}
+                        </SyntaxHighlighter>
+                      </div>
+                    ) : (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  }
+                }}
+              >
+                {msg.content}
+              </ReactMarkdown>
+            </div>
+            
+            {/* AI Action Bar */}
+            <div className="flex items-center gap-1 mt-1 text-[#64748B]">
+              <button className="p-1.5 hover:bg-white hover:text-[#2563EB] rounded-md transition-colors" title="Copy"><Copy size={16} strokeWidth={2} /></button>
+              <button className="p-1.5 hover:bg-white hover:text-[#2563EB] rounded-md transition-colors" title="Good response"><ThumbsUp size={16} strokeWidth={2} /></button>
+              <button className="p-1.5 hover:bg-white hover:text-[#2563EB] rounded-md transition-colors" title="Bad response"><ThumbsDown size={16} strokeWidth={2} /></button>
+              <button className="p-1.5 hover:bg-white hover:text-[#2563EB] rounded-md transition-colors" title="Regenerate"><RefreshCw size={16} strokeWidth={2} /></button>
+              <button className="p-1.5 hover:bg-white hover:text-[#2563EB] rounded-md transition-colors" title="More"><MoreHorizontal size={16} strokeWidth={2} /></button>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -157,16 +125,19 @@ function MessageBubble({ msg, isLatestAssistant }) {
 // ─── Typing indicator ────────────────────────────────────────────────────────
 function TypingIndicator() {
   return (
-    <div className="flex gap-3 items-start">
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-violet-600 flex items-center justify-center text-sm">
-        🤖
+    <div className="flex gap-4 items-start w-full max-w-[900px] mx-auto animate-in fade-in duration-300">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#2563EB] to-[#0EA5E9] flex items-center justify-center text-white shadow-sm mt-1">
+        <Bot size={16} />
       </div>
-      <div className="rounded-2xl rounded-tl-sm bg-slate-800/80 border border-slate-700/60 px-4 py-3">
+      <div 
+        className="bg-[#F1F5F9] border border-[#E2E8F0] flex items-center gap-2 text-sm text-[#64748B] font-medium"
+        style={{ borderRadius: '4px 18px 18px 18px', padding: '16px' }}
+      >
         <div className="flex gap-1.5 items-center h-5">
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce"
+              className="w-1.5 h-1.5 rounded-full bg-[#64748B] animate-bounce"
               style={{ animationDelay: `${i * 150}ms` }}
             />
           ))}
@@ -177,40 +148,44 @@ function TypingIndicator() {
 }
 
 // ─── Session list item ────────────────────────────────────────────────────────
-function SessionItem({ session, isActive, onSelect, onDelete }) {
+function SessionItem({ session, isActive, onSelect, onDelete, onRename }) {
   const [hovering, setHovering] = useState(false);
   return (
     <div
-      className={`group relative flex items-start gap-2 rounded-xl px-3 py-2.5 cursor-pointer transition ${
+      className={`group relative flex items-center gap-3 rounded-[12px] px-3 py-3 cursor-pointer transition-all duration-200 ${
         isActive
-          ? 'bg-brand-500/20 border border-brand-500/30'
-          : 'hover:bg-slate-800/70 border border-transparent'
+          ? 'bg-[#E8F1FF] text-[#2563EB] border border-[#3B82F6] shadow-sm font-semibold'
+          : 'bg-[#FFFFFF] hover:bg-[#E8F1FF] hover:border-[#3B82F6]/30 text-[#1E293B] border border-[#E2E8F0] shadow-sm font-medium'
       }`}
       onClick={onSelect}
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
     >
-      <span className="text-base mt-0.5 flex-shrink-0">💬</span>
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${isActive ? 'text-brand-200' : 'text-slate-200'}`}>
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <MessageSquare size={16} className={`flex-shrink-0 ${isActive ? 'text-[#3B82F6]' : 'text-[#64748B]'}`} />
+        <p className="text-[14px] truncate">
           {session.title}
-        </p>
-        {session.lastMessage && (
-          <p className="text-[11px] text-slate-500 truncate mt-0.5">{session.lastMessage}</p>
-        )}
-        <p className="text-[11px] text-slate-600 mt-0.5">
-          {session.messageCount} msg{session.messageCount !== 1 ? 's' : ''}
         </p>
       </div>
       {(hovering || isActive) && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onDelete(session._id); }}
-          className="flex-shrink-0 text-slate-500 hover:text-rose-400 transition text-sm p-0.5"
-          title="Delete session"
-        >
-          🗑
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onRename(session); }}
+            className="flex-shrink-0 text-[#64748B] hover:text-[#2563EB] transition-colors p-1.5 rounded-md hover:bg-white"
+            title="Rename session"
+          >
+            <Edit2 size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDelete(session._id); }}
+            className="flex-shrink-0 text-[#64748B] hover:text-[#EF4444] transition-colors p-1.5 rounded-md hover:bg-white"
+            title="Delete session"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       )}
     </div>
   );
@@ -221,16 +196,16 @@ function CoachPage() {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [sessionTags, setSessionTags] = useState([]);
   const [sessionTitle, setSessionTitle] = useState('New Chat');
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [editingTitle, setEditingTitle] = useState(false);
+  const [editingSession, setEditingSession] = useState(null);
   const [titleInput, setTitleInput] = useState('');
   const [error, setError] = useState('');
+  const [isRateLimited, setIsRateLimited] = useState(false);
 
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
@@ -241,7 +216,7 @@ function CoachPage() {
       const data = await listCoachSessions();
       setSessions(data.sessions || []);
     } catch (_) {
-      setError('Failed to load chat sessions.');
+      // silent fail for sidebar
     } finally {
       setIsLoadingSessions(false);
     }
@@ -256,13 +231,17 @@ function CoachPage() {
     setIsLoadingMessages(true);
     setMessages([]);
     setError('');
+    setIsRateLimited(false);
     try {
       const data = await getCoachSession(sessionId);
       setMessages(data.session.messages || []);
-      setSessionTags(data.session.tags || []);
       setSessionTitle(data.session.title || 'New Chat');
-    } catch (_) {
-      setError('Failed to load chat.');
+    } catch (err) {
+      if (err?.response?.status === 429) {
+        setIsRateLimited(true);
+      } else {
+        setError('Failed to load chat.');
+      }
     } finally {
       setIsLoadingMessages(false);
     }
@@ -287,24 +266,27 @@ function CoachPage() {
       };
       setSessions((prev) => [newSession, ...prev]);
       setMessages([]);
-      setSessionTags([]);
       setSessionTitle('New Chat');
       setActiveSessionId(data.session._id);
       setError('');
+      setIsRateLimited(false);
       setTimeout(() => inputRef.current?.focus(), 100);
-    } catch (_) {
-      setError('Could not create a new chat session.');
+    } catch (err) {
+      if (err?.response?.status === 429) {
+        setIsRateLimited(true);
+      } else {
+        setError('Could not create a new chat session.');
+      }
     }
   };
 
   // ── Send message ──────────────────────────────────────────────────────────
-  const handleSend = async (messageText) => {
-    const text = (messageText || input).trim();
+  const handleSend = async (forcedText = null) => {
+    const text = forcedText || input.trim();
     if (!text || isThinking) return;
 
     let sessionId = activeSessionId;
 
-    // Auto-create session if none active
     if (!sessionId) {
       try {
         const data = await createCoachSession();
@@ -313,16 +295,20 @@ function CoachPage() {
         setSessions((prev) => [{
           _id: sessionId, title: 'New Chat', messageCount: 0, lastMessage: '', tags: [], updatedAt: new Date().toISOString(),
         }, ...prev]);
-      } catch (_) {
-        setError('Could not start a session. Please try again.');
+      } catch (err) {
+        if (err?.response?.status === 429) {
+          setIsRateLimited(true);
+        } else {
+          setError('Could not start a session. Please try again.');
+        }
         return;
       }
     }
 
-    setInput('');
+    if (!forcedText) setInput('');
     setError('');
+    setIsRateLimited(false);
 
-    // Optimistically add user message
     const userMsg = { role: 'user', content: text, createdAt: new Date().toISOString() };
     setMessages((prev) => [...prev, userMsg]);
     setIsThinking(true);
@@ -330,28 +316,32 @@ function CoachPage() {
     try {
       const data = await sendCoachMessage(sessionId, { content: text });
 
-      // Append assistant reply
       const assistantMsg = { role: 'assistant', content: data.message.content, createdAt: new Date().toISOString() };
       setMessages((prev) => [...prev, assistantMsg]);
 
-      // Update session metadata
       if (data.sessionTitle) {
         setSessionTitle(data.sessionTitle);
         setSessions((prev) =>
           prev.map((s) =>
             s._id === sessionId
-              ? { ...s, title: data.sessionTitle, messageCount: s.messageCount + 2, lastMessage: text.slice(0, 80), tags: data.tags || [], updatedAt: new Date().toISOString() }
+              ? { ...s, title: data.sessionTitle, messageCount: s.messageCount + 2, lastMessage: text.slice(0, 80), updatedAt: new Date().toISOString() }
               : s
           )
         );
       }
-      if (data.tags) setSessionTags(data.tags);
-    } catch (_) {
-      setError('Failed to get a response. Please try again.');
-      setMessages((prev) => prev.slice(0, -1)); // remove optimistic user msg
+    } catch (err) {
+      if (err?.response?.status === 429) {
+        setIsRateLimited(true);
+      } else {
+        setError('Failed to get a response. Please try again.');
+      }
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsThinking(false);
       inputRef.current?.focus();
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+      }
     }
   };
 
@@ -364,41 +354,25 @@ function CoachPage() {
         setActiveSessionId(null);
         setMessages([]);
         setSessionTitle('New Chat');
-        setSessionTags([]);
       }
     } catch (_) {
       setError('Failed to delete session.');
     }
   };
 
-  // ── Clear messages ────────────────────────────────────────────────────────
-  const handleClear = async () => {
-    if (!activeSessionId) return;
-    try {
-      await clearCoachMessages(activeSessionId);
-      setMessages([]);
-      setSessionTags([]);
-      setSessionTitle('New Chat');
-      setSessions((prev) =>
-        prev.map((s) => s._id === activeSessionId ? { ...s, messageCount: 0, lastMessage: '', title: 'New Chat' } : s)
-      );
-    } catch (_) {
-      setError('Failed to clear chat.');
-    }
-  };
-
   // ── Rename session ────────────────────────────────────────────────────────
-  const handleRename = async () => {
-    if (!activeSessionId || !titleInput.trim()) { setEditingTitle(false); return; }
+  const handleRenameSubmit = async () => {
+    if (!editingSession || !titleInput.trim()) { setEditingSession(null); return; }
     try {
-      await updateCoachSessionTitle(activeSessionId, titleInput.trim());
-      setSessionTitle(titleInput.trim());
-      setSessions((prev) => prev.map((s) => s._id === activeSessionId ? { ...s, title: titleInput.trim() } : s));
+      await updateCoachSessionTitle(editingSession._id, titleInput.trim());
+      if (activeSessionId === editingSession._id) {
+        setSessionTitle(titleInput.trim());
+      }
+      setSessions((prev) => prev.map((s) => s._id === editingSession._id ? { ...s, title: titleInput.trim() } : s));
     } catch (_) { /* silent */ }
-    setEditingTitle(false);
+    setEditingSession(null);
   };
 
-  // ── Key handler ───────────────────────────────────────────────────────────
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -408,211 +382,213 @@ function CoachPage() {
 
   const isEmpty = messages.length === 0 && !isLoadingMessages;
 
-  return (
-    <AppShell title="AI Interview Coach" subtitle="Your personal coach — ask anything, anytime. Context-aware and persistent.">
-      <div className="flex gap-4" style={{ height: 'calc(100vh - 200px)', minHeight: '560px' }}>
+  const EXAMPLE_PROMPTS = [
+    'Prepare for Java interview',
+    'Explain Spring Boot',
+    'Mock HR interview',
+    'Review my resume',
+    'Improve communication'
+  ];
 
-        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+  return (
+    <AppShell>
+      {/* Overlay entire AppShell body with the main background color */}
+      <div className="fixed inset-0 top-[72px] bg-[#F5F7FA] z-40 flex overflow-hidden font-sans">
+        
+        {/* ── Sidebar (Left) ─────────────────────────────────────────────────────── */}
         <aside
-          className={`flex-shrink-0 flex flex-col gap-2 transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-0 overflow-hidden'}`}
+          className={`flex-shrink-0 flex flex-col transition-all duration-300 bg-[#EEF2F7] border-r border-[#E2E8F0] shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10 ${sidebarOpen ? 'w-[280px]' : 'w-0 overflow-hidden border-none'}`}
+          style={{ borderTopRightRadius: '16px', borderBottomRightRadius: '16px' }}
         >
           {sidebarOpen && (
             <>
-              <button
-                type="button"
-                className="w-full primary-btn flex items-center justify-center gap-2 py-2.5"
-                onClick={handleNewSession}
-              >
-                <span className="text-lg">+</span> New Chat
-              </button>
-
-              <div className="glass-card flex-1 overflow-y-auto p-2 space-y-1">
-                {isLoadingSessions ? (
-                  <p className="text-xs text-slate-400 text-center py-4">Loading sessions…</p>
-                ) : sessions.length === 0 ? (
-                  <p className="text-xs text-slate-500 text-center py-6">No chats yet.<br />Start by clicking New Chat.</p>
-                ) : (
-                  sessions.map((s) => (
-                    <SessionItem
-                      key={s._id}
-                      session={s}
-                      isActive={s._id === activeSessionId}
-                      onSelect={() => selectSession(s._id)}
-                      onDelete={handleDelete}
-                    />
-                  ))
-                )}
+              <div className="p-4 flex items-center justify-between">
+                <button
+                  type="button"
+                  className="flex-1 bg-gradient-to-r from-[#2563EB] to-[#3B82F6] hover:from-[#1d4ed8] hover:to-[#2563EB] text-white transition-all shadow-md font-semibold rounded-[12px] py-3 flex items-center justify-center gap-2 text-sm"
+                  onClick={handleNewSession}
+                >
+                  <Plus size={18} /> New Chat
+                </button>
+                <button 
+                  onClick={() => setSidebarOpen(false)}
+                  className="ml-3 p-2.5 bg-white border border-[#E2E8F0] text-[#64748B] hover:bg-[#E8F1FF] hover:text-[#2563EB] rounded-[12px] transition-colors shadow-sm"
+                  title="Collapse Sidebar"
+                >
+                  <Menu size={18} />
+                </button>
               </div>
 
-              {/* Coach info card */}
-              <div className="glass-card p-3 border-brand-500/20">
-                <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider mb-1.5">Coach AI</p>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Powered by Gemini AI. Ask anything about interviews — technical, behavioral, or communication tips.
-                </p>
-                <Link to="/setup" className="mt-2 block text-[11px] text-brand-400 hover:text-brand-200 font-semibold transition">
-                  → Start a mock interview
-                </Link>
+              <div className="px-5 py-2">
+                <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-wider">Recent Chats</h3>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 custom-scrollbar">
+                {isLoadingSessions ? (
+                  <div className="flex justify-center py-8">
+                    <div className="w-5 h-5 border-2 border-[#E2E8F0] border-t-[#2563EB] rounded-full animate-spin" />
+                  </div>
+                ) : sessions.length === 0 ? (
+                  <div className="text-center py-8">
+                     <MessageSquare className="mx-auto text-[#E2E8F0] mb-2" size={32} />
+                     <p className="text-sm text-[#64748B] font-medium">No recent chats.</p>
+                  </div>
+                ) : (
+                  sessions.map((s) => (
+                    editingSession?._id === s._id ? (
+                      <div key={s._id} className="px-2 py-1 flex items-center bg-white rounded-[12px] shadow-sm border border-[#2563EB]">
+                        <input
+                          autoFocus
+                          className="w-full text-sm px-2 py-2 rounded bg-transparent focus:outline-none text-[#1E293B]"
+                          value={titleInput}
+                          onChange={(e) => setTitleInput(e.target.value)}
+                          onBlur={handleRenameSubmit}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleRenameSubmit(); if (e.key === 'Escape') setEditingSession(null); }}
+                        />
+                      </div>
+                    ) : (
+                      <SessionItem
+                        key={s._id}
+                        session={s}
+                        isActive={s._id === activeSessionId}
+                        onSelect={() => selectSession(s._id)}
+                        onDelete={handleDelete}
+                        onRename={(sess) => { setEditingSession(sess); setTitleInput(sess.title); }}
+                      />
+                    )
+                  ))
+                )}
               </div>
             </>
           )}
         </aside>
 
-        {/* ── Chat panel ──────────────────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col glass-card overflow-hidden min-w-0">
-
-          {/* Chat header */}
-          <div className="flex items-center gap-3 border-b border-slate-700/60 px-4 py-3 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen((v) => !v)}
-              className="text-slate-400 hover:text-white transition p-1 rounded-lg hover:bg-slate-700"
-              title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-            >
-              ☰
-            </button>
-
-            <div className="flex-1 min-w-0">
-              {editingTitle ? (
-                <input
-                  autoFocus
-                  className="bg-slate-800 border border-brand-500/50 rounded-lg px-3 py-1 text-sm text-white w-full max-w-xs focus:outline-none focus:ring-1 focus:ring-brand-500"
-                  value={titleInput}
-                  onChange={(e) => setTitleInput(e.target.value)}
-                  onBlur={handleRename}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setEditingTitle(false); }}
-                />
-              ) : (
+        {/* ── Main Chat Area ──────────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col relative bg-[#F5F7FA]">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 bg-[#FFFFFF] shadow-sm border-b border-[#E2E8F0] z-10 sticky top-0">
+            <div className="flex items-center gap-4">
+              {!sidebarOpen && (
                 <button
-                  type="button"
-                  className="text-sm font-semibold text-white hover:text-brand-200 transition truncate max-w-xs text-left"
-                  onClick={() => { setTitleInput(sessionTitle); setEditingTitle(true); }}
-                  title="Click to rename"
+                  onClick={() => setSidebarOpen(true)}
+                  className="p-2 bg-white border border-[#E2E8F0] text-[#64748B] hover:bg-[#E8F1FF] hover:text-[#2563EB] rounded-[12px] transition-colors shadow-sm"
+                  title="Open Sidebar"
                 >
-                  {sessionTitle}
+                  <Menu size={18} />
                 </button>
               )}
-              {/* Tags */}
-              {sessionTags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {sessionTags.map((tag, i) => (
-                    <span key={tag} className={`text-[10px] font-semibold rounded-full border px-2 py-0.5 ${TAG_COLORS[i % TAG_COLORS.length]}`}>
-                      {tag}
-                    </span>
-                  ))}
+              <div>
+                <h1 className="text-[20px] font-semibold text-[#1E293B] leading-tight">AI Interview Coach</h1>
+                <p className="text-[13px] text-[#64748B] font-medium mt-0.5">Your personal AI mentor for interviews and career preparation.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-[#F5F7FA]">
+            
+            <div className="flex flex-col space-y-[20px] pb-[160px]">
+              {isEmpty && (
+                <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto px-4 mt-20 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2563EB] to-[#0EA5E9] flex items-center justify-center text-white shadow-lg mb-6">
+                    <Bot size={32} />
+                  </div>
+                  <h2 className="text-[32px] font-semibold text-[#1E293B] mb-8 text-center tracking-tight">How can I help you today?</h2>
+                  <div className="flex flex-wrap justify-center gap-3 w-full">
+                    {EXAMPLE_PROMPTS.map((prompt) => (
+                      <button
+                        key={prompt}
+                        onClick={() => handleSend(prompt)}
+                        className="px-5 py-3 rounded-xl border border-[#E2E8F0] bg-[#FFFFFF] hover:bg-[#E8F1FF] hover:border-[#3B82F6] hover:text-[#2563EB] shadow-sm transition-all text-[14px] font-medium text-[#1E293B]"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {isLoadingMessages && (
+                 <div className="flex justify-center py-12">
+                   <div className="w-8 h-8 border-4 border-[#E2E8F0] border-t-[#2563EB] rounded-full animate-spin" />
+                 </div>
+              )}
+
+              {messages.map((msg, i) => (
+                <MessageBubble key={i} msg={msg} />
+              ))}
+              
+              {isThinking && <TypingIndicator />}
+              
+              {/* Rate Limit Error State */}
+              {isRateLimited && (
+                <div className="max-w-[900px] mx-auto flex flex-col items-start gap-3 w-full">
+                  <div className="bg-[#FEF2F2] border border-[#FCA5A5] text-[#EF4444] px-5 py-4 rounded-[12px] text-[15px] font-medium w-full text-left shadow-sm">
+                    AI service is temporarily busy. Please try again in a few seconds.
+                  </div>
+                  <button
+                    onClick={() => handleSend()}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-[#E2E8F0] text-[#1E293B] rounded-[12px] text-sm font-medium hover:bg-[#F8FAFC] transition-colors shadow-sm"
+                  >
+                    <RefreshCw size={16} />
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {/* General Error State */}
+              {error && !isRateLimited && (
+                <div className="max-w-[900px] mx-auto w-full bg-[#FEF2F2] border border-[#FCA5A5] text-[#EF4444] px-5 py-4 rounded-[12px] text-[15px] font-medium text-left shadow-sm">
+                  {error}
+                </div>
+              )}
+
+              <div ref={bottomRef} className="h-4" />
             </div>
-
-            {activeSessionId && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="text-xs text-slate-400 hover:text-rose-300 transition flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-800"
-                title="Clear chat history"
-              >
-                🗑 Clear
-              </button>
-            )}
           </div>
 
-          {/* Messages area */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {/* Floating Input Area */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 bg-gradient-to-t from-[#F5F7FA] via-[#F5F7FA] to-transparent pointer-events-none">
+            <div className="max-w-[900px] mx-auto pointer-events-auto">
+              <div className="relative flex items-end gap-3 bg-[#FFFFFF] border border-[#E2E8F0] rounded-[18px] p-3 shadow-lg hover:shadow-xl focus-within:ring-2 focus-within:ring-[#E8F1FF] focus-within:border-[#3B82F6] transition-all duration-300">
+                
+                <button type="button" className="p-2.5 text-[#64748B] hover:text-[#2563EB] hover:bg-[#E8F1FF] rounded-xl transition-colors">
+                  <Paperclip size={20} strokeWidth={2} />
+                </button>
+                
+                <textarea
+                  ref={inputRef}
+                  className="flex-1 max-h-48 bg-transparent border-0 p-2.5 text-[16px] text-[#1E293B] focus:outline-none focus:ring-0 resize-none placeholder:text-[#64748B] leading-relaxed font-medium"
+                  placeholder="Ask anything about interviews..."
+                  rows={1}
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 192) + 'px';
+                  }}
+                  onKeyDown={handleKeyDown}
+                  disabled={isThinking}
+                />
 
-            {/* Empty state */}
-            {isEmpty && (
-              <div className="flex flex-col items-center justify-center h-full gap-6 text-center px-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-600 to-cyan-500 flex items-center justify-center text-4xl shadow-2xl">
-                  🤖
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Hi! I'm Coach AI</h2>
-                  <p className="text-slate-400 text-sm mt-1 max-w-sm">
-                    Ask me any interview question, share your answer for feedback, or request a learning tip.
-                  </p>
-                </div>
-
-                {/* Quick prompts */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-                  {QUICK_PROMPTS.map((qp) => (
-                    <button
-                      key={qp.label}
-                      type="button"
-                      onClick={() => handleSend(qp.prompt)}
-                      className="flex items-center gap-2.5 text-left rounded-xl bg-slate-800/70 border border-slate-700 px-3 py-2.5 hover:border-brand-500/50 hover:bg-slate-800 transition group"
-                    >
-                      <span className="text-xl flex-shrink-0">{qp.icon}</span>
-                      <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition">{qp.label}</span>
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2 p-1">
+                  <button type="button" className="p-2.5 text-[#64748B] hover:text-[#2563EB] hover:bg-[#E8F1FF] rounded-xl transition-colors">
+                    <Mic size={20} strokeWidth={2} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSend()}
+                    disabled={isThinking || !input.trim()}
+                    className="p-3 bg-[#2563EB] text-white rounded-[14px] hover:bg-[#1d4ed8] hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send size={18} strokeWidth={2} className="ml-0.5" />
+                  </button>
                 </div>
               </div>
-            )}
-
-            {/* Loading messages */}
-            {isLoadingMessages && (
-              <div className="flex justify-center py-8">
-                <div className="w-8 h-8 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-              </div>
-            )}
-
-            {/* Message bubbles */}
-            {messages.map((msg, i) => (
-              <MessageBubble
-                key={i}
-                msg={msg}
-                isLatestAssistant={msg.role === 'assistant' && i === messages.length - 1}
-              />
-            ))}
-
-            {/* Typing indicator */}
-            {isThinking && <TypingIndicator />}
-
-            {/* Error */}
-            {error && (
-              <div className="rounded-xl bg-rose-500/10 border border-rose-500/30 px-4 py-3 text-sm text-rose-300 text-center">
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Input area */}
-          <div className="border-t border-slate-700/60 px-4 py-3 flex-shrink-0">
-            <div className="flex gap-2 items-end">
-              <textarea
-                ref={inputRef}
-                rows={1}
-                className="flex-1 soft-input resize-none py-2.5 leading-relaxed"
-                style={{ maxHeight: '120px', overflowY: 'auto' }}
-                placeholder="Ask a question, share an answer for feedback, or request tips…"
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  // Auto-grow
-                  e.target.style.height = 'auto';
-                  e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                }}
-                onKeyDown={handleKeyDown}
-                disabled={isThinking}
-              />
-              <button
-                type="button"
-                onClick={() => handleSend()}
-                disabled={isThinking || !input.trim()}
-                className="flex-shrink-0 w-11 h-11 rounded-xl bg-gradient-to-r from-brand-600 to-cyan-500 flex items-center justify-center text-white text-lg hover:from-brand-500 hover:to-cyan-400 transition disabled:opacity-40 shadow-lg"
-                title="Send message (Enter)"
-              >
-                {isThinking ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : '➤'}
-              </button>
             </div>
-            <p className="text-[11px] text-slate-600 mt-1.5 text-center">
-              Press <kbd className="bg-slate-800 border border-slate-600 rounded px-1 text-[10px]">Enter</kbd> to send · <kbd className="bg-slate-800 border border-slate-600 rounded px-1 text-[10px]">Shift+Enter</kbd> for new line
-            </p>
           </div>
+
         </div>
       </div>
     </AppShell>
