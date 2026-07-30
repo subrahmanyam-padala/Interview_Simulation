@@ -1,14 +1,17 @@
 {
   "name": "ai-driven-interview-simulation-system",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "workspaces": [
     "client",
     "server"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "build": "npm install --prefix client && npm run build --prefix client",
-    "start": "npm start --prefix server"
+    "dev": "concurrently \"npm --workspace server run dev\" \"npm --workspace client run dev\"",
+    "build": "npm --workspace client run build",
+    "start": "npm --workspace server start"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
