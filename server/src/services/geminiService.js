@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+﻿import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../config/env.js';
 
 const genAI = env.GEMINI_API_KEY ? new GoogleGenerativeAI(env.GEMINI_API_KEY) : null;
@@ -24,6 +24,8 @@ const parseJSON = (content) => {
 
 const normalizeQuestionText = (value = '') => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
+const tokenizeQuestion = (value = '') => normalizeQuestionText(value).split(' ').filter(Boolean);
+
 const isRepeatedQuestion = (questionText, askedQuestions = [], latestQuestionText = '') => {
   const normalizedQuestion = normalizeQuestionText(questionText);
   if (!normalizedQuestion) {
@@ -35,6 +37,33 @@ const isRepeatedQuestion = (questionText, askedQuestions = [], latestQuestionTex
     .filter(Boolean);
 
   return previousQuestions.includes(normalizedQuestion);
+};
+
+const isTooSimilarQuestion = (questionText, comparedQuestions = []) => {
+  const candidateTokens = new Set(tokenizeQuestion(questionText));
+  if (!candidateTokens.size) {
+    return true;
+  }
+
+  const normalizedCandidate = normalizeQuestionText(questionText);
+
+  return (comparedQuestions || []).some((item) => {
+    const normalizedItem = normalizeQuestionText(item);
+    if (!normalizedItem) {
+      return false;
+    }
+
+    const tokens = new Set(tokenizeQuestion(item));
+    if (!tokens.size) {
+      return false;
+    }
+
+    const overlap = [...candidateTokens].filter((token) => tokens.has(token)).length;
+    const unionSize = new Set([...candidateTokens, ...tokens]).size || 1;
+    const similarity = overlap / unionSize;
+
+    return similarity >= 0.75 || normalizedItem.includes(normalizedCandidate) || normalizedCandidate.includes(normalizedItem);
+  });
 };
 const askGeminiForJSON = async (systemInstruction, userContent, fallback) => {
   if (!genAI) {
@@ -396,15 +425,34 @@ export const generateAdaptiveQuestion = async ({ setup, askedQuestions, latestRe
     latestResponse,
     adaptiveDifficulty,
   });
+  const questionStage = Math.min((askedQuestions || []).length, 2);
+  const stageFallbackText = (() => {
+    if (setup.interviewType === 'coding') {
+      const codingFallbacks = [
+        `Let's start simpler. Can you describe a brute-force approach first and mention one edge case?`,
+        `Good. Now can you explain how you would optimize the solution or improve its space complexity?`,
+        `Now push it further: what would you change for larger inputs or stricter constraints?`,
+      ];
+      return codingFallbacks[questionStage];
+    }
+
+    const interviewFallbacks = [
+      `Can you walk me through one concrete example from ${setup.topic} and the result you achieved?`,
+      `What trade-offs did you consider, and what would you improve if you revisited that answer?`,
+      `How would you apply ${setup.topic} in a larger or more complex situation, and why?`,
+    ];
+    return interviewFallbacks[questionStage];
+  })();
 
   const systemInstruction = 'You are a professional human interviewer. Ask exactly one interview question at a time, no answers, no long explanations. Keep tone polite and clear.';
   const userContent = `Generate the next question based on interview context and performance.\n\nRules:\n1) If previous answer quality is good, ask a deeper/advanced question.\n2) If quality is average, ask a follow-up question.\n3) If quality is poor or skipped, ask a simpler guiding question.\n4) Avoid repeating previous questions.\n5) Keep question concise.\n\nContext:\nInterview Type: ${setup.interviewType}\nRole: ${setup.jobRole}\nTopic: ${setup.topic}\nBase Difficulty: ${setup.difficulty}\nTarget Difficulty For Next Question: ${adaptiveDifficulty}\nPerformance Band: ${performanceBand}\nAsked Questions: ${JSON.stringify(askedQuestions || [])}\nPrevious Question: ${latestResponse?.questionText || ''}\nPrevious Transcript: ${latestResponse?.transcript || ''}\n\nReturn strict JSON schema:\n{"text":"...","difficulty":"easy|medium|hard","encouragement":"optional short line"}`;
 
   const result = await askGeminiForJSON(systemInstruction, userContent, fallback);
   const generatedText = String(result.text || '').trim();
-  const nextQuestionText = isRepeatedQuestion(generatedText, askedQuestions, latestResponse?.questionText)
-    ? fallback.text
-    : generatedText || fallback.text;
+  const previousQuestionTexts = [...(askedQuestions || []), latestResponse?.questionText].filter(Boolean);
+  const nextQuestionText = isRepeatedQuestion(generatedText, askedQuestions, latestResponse?.questionText) || isTooSimilarQuestion(generatedText, previousQuestionTexts)
+    ? stageFallbackText
+    : generatedText || stageFallbackText;
 
   return {
     questionId: nextQuestionId,
@@ -491,7 +539,7 @@ export const generateFinalSummary = async ({ setup, overallScores, strengths, we
   };
 };
 
-// ─── AI Career Recommendation ─────────────────────────────────────────────────
+// â”€â”€â”€ AI Career Recommendation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const generateCareerRecommendation = async ({ setup, overallScores, strengths, weaknesses, responses, proctoringViolations }) => {
   const violationCount = Array.isArray(proctoringViolations) ? proctoringViolations.length : 0;
 
@@ -500,37 +548,37 @@ export const generateCareerRecommendation = async ({ setup, overallScores, stren
       {
         title: 'Backend Developer',
         matchScore: 72,
-        icon: '🖥️',
+        icon: 'ðŸ–¥ï¸',
         description: 'Strong fit based on your problem-solving answers and technical depth.',
         requiredSkills: ['Node.js', 'Databases', 'REST APIs', 'Docker'],
       },
       {
         title: 'Data Analyst',
         matchScore: 60,
-        icon: '📊',
+        icon: 'ðŸ“Š',
         description: 'Your analytical reasoning shows potential in data-focused roles.',
         requiredSkills: ['Python', 'SQL', 'Power BI', 'Statistics'],
       },
       {
         title: 'AI/ML Engineer',
         matchScore: 55,
-        icon: '🤖',
+        icon: 'ðŸ¤–',
         description: 'AI and ML is a growing field that rewards curiosity and math skills.',
         requiredSkills: ['Python', 'TensorFlow', 'Math', 'Data Wrangling'],
       },
       {
         title: 'Cloud Engineer',
         matchScore: 50,
-        icon: '☁️',
+        icon: 'â˜ï¸',
         description: 'Cloud skills are highly transferable and in demand.',
         requiredSkills: ['AWS/GCP/Azure', 'Kubernetes', 'CI/CD', 'Networking'],
       },
     ],
     weakSkills: ['System Design', 'Communication', 'Data Structures'],
     learningRoadmap: [
-      { phase: 'Month 1–2', title: 'Foundation Strengthening', tasks: ['Review core CS fundamentals', 'Practice 30 LeetCode problems', 'Complete one beginner project'] },
-      { phase: 'Month 3–4', title: 'Skill Building', tasks: ['Learn a new framework/tool', 'Build a portfolio project', 'Contribute to open source'] },
-      { phase: 'Month 5–6', title: 'Interview Readiness', tasks: ['Mock interviews 3×/week', 'System design practice', 'Refine resume and LinkedIn'] },
+      { phase: 'Month 1â€“2', title: 'Foundation Strengthening', tasks: ['Review core CS fundamentals', 'Practice 30 LeetCode problems', 'Complete one beginner project'] },
+      { phase: 'Month 3â€“4', title: 'Skill Building', tasks: ['Learn a new framework/tool', 'Build a portfolio project', 'Contribute to open source'] },
+      { phase: 'Month 5â€“6', title: 'Interview Readiness', tasks: ['Mock interviews 3Ã—/week', 'System design practice', 'Refine resume and LinkedIn'] },
     ],
     certifications: [
       { name: 'AWS Certified Developer', provider: 'Amazon Web Services', level: 'Associate', priority: 'High', url: 'https://aws.amazon.com/certification/' },

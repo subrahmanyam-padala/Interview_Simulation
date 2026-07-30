@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 
 export default function InterviewerAvatar({ textToSpeak, onSpeechEnd, isListening, isThinking, gender = 'female' }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -6,6 +6,29 @@ export default function InterviewerAvatar({ textToSpeak, onSpeechEnd, isListenin
   const synthRef = useRef(window.speechSynthesis);
   
   const avatarImage = gender === 'male' ? '/assets/interviewers/male.png' : '/assets/interviewers/female.png';
+
+  const selectPreferredVoice = (voices, speakerGender) => {
+    const nameHints = speakerGender === 'male'
+      ? ['ravi', 'arjun', 'raj', 'rohit', 'amit', 'akash', 'mohit', 'vijay', 'sanjay']
+      : ['heera', 'asha', 'neerja', 'puja', 'aditi', 'kavya', 'sunita', 'sudha', 'ananya'];
+
+    const indianVoices = voices.filter((voice) => {
+      const language = String(voice.lang || '').toLowerCase();
+      const name = String(voice.name || '').toLowerCase();
+      return language.startsWith('en-in') || name.includes('india') || name.includes('indian');
+    });
+
+    const genderMatchedIndianVoice = indianVoices.find((voice) =>
+      nameHints.some((hint) => String(voice.name || '').toLowerCase().includes(hint))
+    );
+    if (genderMatchedIndianVoice) return genderMatchedIndianVoice;
+
+    const anyIndianEnglishVoice = indianVoices.find((voice) => String(voice.lang || '').toLowerCase().startsWith('en-in'));
+    if (anyIndianEnglishVoice) return anyIndianEnglishVoice;
+
+    const anyEnglishVoice = voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith('en'));
+    return anyEnglishVoice || voices[0] || null;
+  };
 
   useEffect(() => {
     if (!textToSpeak) return;
@@ -17,23 +40,19 @@ export default function InterviewerAvatar({ textToSpeak, onSpeechEnd, isListenin
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     
-    // Try to find a good English voice matching the gender
+    // Prefer Indian English voices for a natural local accent
     const voices = synthRef.current.getVoices();
-    
-    let preferredVoice;
-    if (gender === 'male') {
-       preferredVoice = voices.find(v => v.lang.includes('en') && (v.name.toLowerCase().includes('male') || v.name.includes('David') || v.name.includes('Mark')));
-       if (!preferredVoice) preferredVoice = voices.find(v => v.lang.includes('en')); // fallback
-    } else {
-       preferredVoice = voices.find(v => v.lang.includes('en') && (v.name.toLowerCase().includes('female') || v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google US English')));
-    }
+    const preferredVoice = selectPreferredVoice(voices, gender);
     
     if (preferredVoice) {
       utterance.voice = preferredVoice;
+      utterance.lang = preferredVoice.lang || 'en-IN';
+    } else {
+      utterance.lang = 'en-IN';
     }
     
-    utterance.rate = 0.95; // slightly slower for clearer interview style
-    utterance.pitch = gender === 'male' ? 0.9 : 1.0;
+    utterance.rate = 0.93; // slightly slower for clearer interview style
+    utterance.pitch = gender === 'male' ? 0.92 : 1.0;
 
     // Fallback timeout in case TTS hangs (common browser bug)
     // Roughly 100ms per character + 3 seconds buffer

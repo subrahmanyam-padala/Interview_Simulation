@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import Editor from '@monaco-editor/react';
@@ -12,6 +12,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { analyzeVoiceMetrics } from '../utils/voiceAnalysis';
 
 const ANSWER_TIME_LIMIT = 300;
+const AUTO_SUBMIT_DELAY_MS = 5000;
 
 function LiveInterviewPage() {
   const { id } = useParams();
@@ -44,6 +45,7 @@ function LiveInterviewPage() {
   const [chatHistory, setChatHistory] = useState([]);
   const [textToSpeak, setTextToSpeak] = useState('');
   const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false);
+  const initializedQuestionRef = useRef(null);
   
   const handleAvatarSpeechEnd = useCallback(() => {
     setIsAvatarSpeaking(false);
@@ -140,18 +142,18 @@ function LiveInterviewPage() {
       autoSubmitTimeoutRef.current = null;
     }
 
-    // If speech stopped naturally and we have a transcript, wait 3 seconds before auto-submit
+    // If speech stopped naturally and we have a transcript, wait briefly before auto-submit
     if (!speech.isListening && !isAvatarSpeaking && !isSubmitting && textLength >= 2) {
       if (interview?.setup?.interviewType === 'coding') {
         console.log('[Interview Flow] Speech stopped, but this is a coding interview. Waiting for manual submit.');
         return;
       }
-      console.log('[Interview Flow] Speech stopped, waiting 3 seconds before auto-submit...');
-      autoSubmitTimeoutRef.current = setTimeout(() => {
+      console.log('[Interview Flow] Speech stopped, waiting briefly before auto-submit...');
+            autoSubmitTimeoutRef.current = setTimeout(() => {
         if (!isSubmittingRef.current) {
           onSubmitAnswer();
         }
-      }, 3000);
+      }, AUTO_SUBMIT_DELAY_MS);
     }
     
     return () => {
@@ -185,7 +187,7 @@ function LiveInterviewPage() {
     }
   }, [face.isFaceDetected, face.faceStatus, hasStarted, isFacePaused, speech.isListening]);
 
-  // ── Proctoring ────────────────────────────────────────────────────────────
+  // â”€â”€ Proctoring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleViolation = useCallback(async (violation) => {
     if (id) {
       try {
@@ -218,6 +220,7 @@ function LiveInterviewPage() {
         const next = payload.questions[payload.responses.length] || null;
         setInterview(payload);
         setAnsweredCount(payload.responses.length);
+        initializedQuestionRef.current = null;
         setCurrentQuestion(next);
       } catch (requestError) {
         setError(requestError.response?.data?.message || 'Unable to load interview session');
@@ -282,7 +285,9 @@ function LiveInterviewPage() {
     // Handle Next Question setup
   useEffect(() => {
     if (!currentQuestion || !hasStarted) return;
+    if (initializedQuestionRef.current === currentQuestion.questionId) return;
     
+    initializedQuestionRef.current = currentQuestion.questionId;
     console.log(`[Interview Flow] Setting up question ${answeredCount + 1}`);
     setTranscript('');
     speech.resetTranscript();
@@ -317,7 +322,7 @@ function LiveInterviewPage() {
     setChatHistory(prev => [...prev, { role: 'ai', text: aiText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
     setTextToSpeak(aiText);
     setIsAvatarSpeaking(true);
-  }, [currentQuestion?.questionId, hasStarted, isCodingInterview, language, getStarterCodeForLanguage, isFacePaused, speech.isListening, speech.start]);
+  }, [currentQuestion?.questionId, hasStarted, isCodingInterview, language, getStarterCodeForLanguage, isFacePaused, answeredCount, speech.isListening, speech.start]);
 
   const totalQuestions = interview?.questions?.length || 0;
   const completedAll = !currentQuestion && answeredCount >= totalQuestions && totalQuestions > 0;
@@ -419,11 +424,13 @@ function LiveInterviewPage() {
       setAnsweredCount(result.answered);
 
       if (result.isCompleted || !result.nextQuestion) {
+        initializedQuestionRef.current = null;
         setCurrentQuestion(null);
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
         }
       } else {
+        initializedQuestionRef.current = null;
         setCurrentQuestion(result.nextQuestion);
       }
     } catch (requestError) {
@@ -516,7 +523,7 @@ function LiveInterviewPage() {
   return (
     <div className="h-screen w-full font-sans flex flex-col overflow-hidden bg-[#F7F9FC] text-[#0F172A]">
       
-      {/* ── Top Header ─────────────────────────────────────────────────── */}
+      {/* â”€â”€ Top Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <header className="flex-none flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0] z-20 shadow-sm bg-[#FFFFFF]">
         <div className="flex items-center gap-4">
           <h1 className="text-[24px] font-bold text-[#0F172A] tracking-tight">AI Interview</h1>
@@ -541,7 +548,7 @@ function LiveInterviewPage() {
       </header>
 
 
-      {/* ── Main Layout ───────────────────────────────────────────────── */}
+      {/* â”€â”€ Main Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         
         {isFacePaused && (

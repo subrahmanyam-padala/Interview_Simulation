@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useRef, useState } from 'react';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -40,6 +40,7 @@ export const useSpeechRecognition = ({ language = 'en-IN', onSpeechEnd } = {}) =
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
     recognition.lang = language;
 
     recognition.onstart = () => {
@@ -65,14 +66,16 @@ export const useSpeechRecognition = ({ language = 'en-IN', onSpeechEnd } = {}) =
       if (trimmedInterim) {
         console.log(`[SpeechRecognition] Interim Transcript: "${trimmedInterim}"`);
       }
-      setInterimText(trimmedInterim);
-      
+
       if (finalChunk) {
-        console.log(`[SpeechRecognition] Final Chunk: "${finalChunk.trim()}"`);
-        setFinalText((previous) => `${previous} ${finalChunk}`.trim());
+        const trimmedFinalChunk = finalChunk.trim();
+        console.log(`[SpeechRecognition] Final Chunk: "${trimmedFinalChunk}"`);
+        setFinalText((previous) => `${previous} ${trimmedFinalChunk}`.trim());
+        setInterimText('');
+      } else {
+        setInterimText(trimmedInterim);
       }
     };
-
     recognition.onerror = (event) => {
       console.error('[SpeechRecognition] Error encountered:', event.error);
       if (event.error === 'not-allowed') {
