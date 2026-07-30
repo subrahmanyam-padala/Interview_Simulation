@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm --workspace server run dev\" \"npm --workspace client run dev\"",
-    "build": "npm --workspace client run build",
+    "build": "cd client && npm install && npm run build",
     "start": "npm --workspace server start"
   },
   "devDependencies": {
