@@ -15,6 +15,11 @@ import scheduleRoutes from './routes/scheduleRoutes.js';
 import codeRoutes from './routes/codeRoutes.js';
 import peerRoutes from './routes/peerRoutes.js';
 import recruiterRoutes from './routes/recruiterRoutes.js';
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -45,6 +50,18 @@ app.use('/api/code', codeRoutes);
 app.use('/api/peer', peerRoutes);
 app.use('/api/recruiter', recruiterRoutes);
 
+
+// Serve React Build
+app.use(express.static(path.join(__dirname, "../../client/dist")));
+
+// React Router Support
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
+
+  res.sendFile(
+    path.join(__dirname, "../../client/dist/index.html")
+  );
+});
 app.use(notFoundHandler);
 app.use(errorHandler);
 

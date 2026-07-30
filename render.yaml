@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: ai-driven-interview-simulation
+    runtime: node
+    plan: free
+    branch: main
+    rootDir: .
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 10000
+
+      - key: CLIENT_URL
+        sync: false
+
+      - key: MONGODB_URI
+        sync: false
+
+      - key: JWT_SECRET
+        sync: false
+
+      - key: GEMINI_API_KEY
+        sync: false
+
+      - key: EMAIL
+        sync: false
+
+      - key: EMAIL_PASSWORD
+        sync: false
