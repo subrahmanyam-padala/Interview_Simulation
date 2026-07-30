@@ -2,7 +2,7 @@ import multer from 'multer';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import mammoth from 'mammoth';
 import Resume from '../models/Resume.js';
-import { parseResumeText } from '../services/openaiService.js';
+import { parseResumeText } from '../services/geminiService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { AppError } from '../utils/appError.js';
 

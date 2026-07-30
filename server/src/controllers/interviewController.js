@@ -9,7 +9,7 @@ import {
   generateCodingQuestions,
   evaluateCodeAnswer,
   generateCareerRecommendation,
-} from '../services/openaiService.js';
+} from '../services/geminiService.js';
 import { AppError } from '../utils/appError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { aggregateOverallScores, buildCompositeScores, deriveStrengthsAndWeaknesses } from '../utils/scoring.js';
@@ -64,14 +64,14 @@ const getNextQuestionIfAny = (interview) => {
   return interview.questions[interview.responses.length] || null;
 };
 
-const adaptNextQuestionData = async ({ interview, latestResponse, nextIndex }) => {
-  const existingNext = interview.questions[nextIndex];
+const adaptNextQuestionData = async ({ interview, latestResponse, nextQuestionIndex }) => {
+  const existingNext = interview.questions[nextQuestionIndex];
   if (!existingNext) {
     return null;
   }
 
   const askedQuestions = interview.questions
-    .slice(0, nextIndex)
+    .slice(0, nextQuestionIndex)
     .map((item) => item.text)
     .filter(Boolean);
 
@@ -208,8 +208,8 @@ export const submitAnswer = asyncHandler(async (req, res) => {
       fluency: 0,
     };
   } else {
-    if (!payload.transcript || payload.transcript.length < 10) {
-      throw new AppError('Transcript must be at least 10 characters long', 400);
+    if (!payload.transcript) {
+      throw new AppError('Transcript cannot be empty', 400);
     }
     aiEvaluation = await evaluateCandidateAnswer({
       question,
@@ -240,8 +240,8 @@ export const submitAnswer = asyncHandler(async (req, res) => {
     responseScores,
   };
 
-  const nextIndex = interview.responses.length;
-  const adaptiveNext = await adaptNextQuestionData({ interview, latestResponse: responseData, nextIndex });
+  const nextQuestionIndex = interview.responses.length + 1;
+  const adaptiveNext = await adaptNextQuestionData({ interview, latestResponse: responseData, nextQuestionIndex });
   
   const updateQuery = {
     $push: { responses: responseData }
@@ -249,7 +249,7 @@ export const submitAnswer = asyncHandler(async (req, res) => {
   
   if (adaptiveNext) {
     updateQuery.$set = {
-      [`questions.${nextIndex}`]: adaptiveNext.documentData
+      [`questions.${nextQuestionIndex}`]: adaptiveNext.documentData
     };
   }
 
@@ -334,8 +334,8 @@ export const skipQuestion = asyncHandler(async (req, res) => {
     },
   };
 
-  const nextIndex = interview.responses.length;
-  const adaptiveNext = await adaptNextQuestionData({ interview, latestResponse: responseData, nextIndex });
+  const nextQuestionIndex = interview.responses.length + 1;
+  const adaptiveNext = await adaptNextQuestionData({ interview, latestResponse: responseData, nextQuestionIndex });
   
   const updateQuery = {
     $push: { responses: responseData }
@@ -343,7 +343,7 @@ export const skipQuestion = asyncHandler(async (req, res) => {
   
   if (adaptiveNext) {
     updateQuery.$set = {
-      [`questions.${nextIndex}`]: adaptiveNext.documentData
+      [`questions.${nextQuestionIndex}`]: adaptiveNext.documentData
     };
   }
 

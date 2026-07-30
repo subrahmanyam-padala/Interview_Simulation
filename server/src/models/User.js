@@ -22,6 +22,30 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6,
     },
+    googleId: {
+      type: String,
+      default: null,
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationCodeHash: {
+      type: String,
+      default: null,
+    },
+    emailVerificationExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    passwordResetTokenHash: {
+      type: String,
+      default: null,
+    },
+    passwordResetExpiresAt: {
+      type: Date,
+      default: null,
+    },
     role: {
       type: String,
       enum: ['user', 'admin', 'recruiter'],
@@ -65,6 +89,7 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     name: this.name,
     email: this.email,
     role: this.role,
+    emailVerified: this.emailVerified,
     skills: this.skills || ['JavaScript', 'React', 'Node.js'],
     preferredDomain: this.preferredDomain || 'Software Engineering',
     experienceLevel: this.experienceLevel || 'Intermediate',

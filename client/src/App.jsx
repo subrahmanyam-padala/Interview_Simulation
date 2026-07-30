@@ -1,33 +1,39 @@
 import { Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminPage from './pages/AdminPage';
+import BattleArenaPage from './pages/BattleArenaPage';
+import BattleLobbyPage from './pages/BattleLobbyPage';
 import CareerRecommendationPage from './pages/CareerRecommendationPage';
 import CoachPage from './pages/CoachPage';
 import DashboardPage from './pages/DashboardPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import HistoryPage from './pages/HistoryPage';
 import InterviewSetupPage from './pages/InterviewSetupPage';
 import LiveInterviewPage from './pages/LiveInterviewPage';
 import LoginPage from './pages/LoginPage';
 import NotFoundPage from './pages/NotFoundPage';
+import PeerCandidatesPage from './pages/PeerCandidatesPage';
+import PeerHistoryPage from './pages/PeerHistoryPage';
+import PeerInterviewRoomPage from './pages/PeerInterviewRoomPage';
 import RegisterPage from './pages/RegisterPage';
+import RecruiterDashboardPage from './pages/RecruiterDashboardPage';
+import RecruiterRoomPage from './pages/RecruiterRoomPage';
 import ReportPage from './pages/ReportPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import ResumeUploadPage from './pages/ResumeUploadPage';
 import RoadmapDetailPage from './pages/RoadmapDetailPage';
 import RoadmapPage from './pages/RoadmapPage';
 import SchedulePage from './pages/SchedulePage';
-import BattleLobbyPage from './pages/BattleLobbyPage';
-import BattleArenaPage from './pages/BattleArenaPage';
-import PeerCandidatesPage from './pages/PeerCandidatesPage';
-import PeerInterviewRoomPage from './pages/PeerInterviewRoomPage';
-import PeerHistoryPage from './pages/PeerHistoryPage';
-import RecruiterDashboardPage from './pages/RecruiterDashboardPage';
-import RecruiterRoomPage from './pages/RecruiterRoomPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route
         path="/"
@@ -109,7 +115,6 @@ function App() {
           </ProtectedRoute>
         }
       />
-
       <Route
         path="/roadmap"
         element={

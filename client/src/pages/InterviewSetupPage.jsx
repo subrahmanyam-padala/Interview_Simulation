@@ -19,6 +19,7 @@ function InterviewSetupPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const isCodingInterview = form.interviewType === 'coding';
 
   useEffect(() => {
     if (location.state?.resumeId) {
@@ -90,12 +91,13 @@ function InterviewSetupPage() {
             </select>
           </label>
 
-          <label className="text-sm text-slate-300">
-            Topic
+                    <label className="text-sm text-slate-300">
+            {isCodingInterview ? 'Coding Focus' : 'Topic'}
             <input
               className="soft-input mt-2"
               value={form.topic}
               onChange={(event) => setForm((prev) => ({ ...prev, topic: event.target.value }))}
+              placeholder={isCodingInterview ? 'Arrays, Strings, Trees, Graphs, DP' : ''}
               required
             />
           </label>
@@ -113,17 +115,19 @@ function InterviewSetupPage() {
             </select>
           </label>
 
-          <label className="text-sm text-slate-300">
-            Interviewer Gender
-            <select
-              className="soft-input mt-2"
-              value={form.interviewerGender}
-              onChange={(event) => setForm((prev) => ({ ...prev, interviewerGender: event.target.value }))}
-            >
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-            </select>
-          </label>
+                    {!isCodingInterview && (
+            <label className="text-sm text-slate-300">
+              Interviewer Gender
+              <select
+                className="soft-input mt-2"
+                value={form.interviewerGender}
+                onChange={(event) => setForm((prev) => ({ ...prev, interviewerGender: event.target.value }))}
+              >
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+              </select>
+            </label>
+          )}
 
           <label className="text-sm text-slate-300">
             Question Count (5-7)

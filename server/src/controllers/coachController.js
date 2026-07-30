@@ -150,6 +150,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
     rest: 'API Design',
     graphql: 'API Design',
   };
+  session.tags = session.tags || [];
   for (const [keyword, tag] of Object.entries(topicMap)) {
     if (lower.includes(keyword) && !session.tags.includes(tag)) {
       session.tags.push(tag);

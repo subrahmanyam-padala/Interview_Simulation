@@ -17,7 +17,7 @@ function DropdownItem({ to, icon: Icon, label, onClick }) {
     <Link 
       to={to} 
       onClick={onClick}
-      className="flex items-center gap-3 p-[12px] h-[44px] text-[14px] font-medium text-[#475569] hover:bg-[#EFF6FF] hover:text-[#2563EB] rounded-md transition-colors border-l-[3px] border-transparent hover:border-[#2563EB]"
+      className="flex items-center gap-3 p-[12px] h-[44px] text-[14px] font-medium text-[#475569] hover:bg-[#ECFDF5] hover:text-[#16A34A] rounded-md transition-colors border-l-[3px] border-transparent hover:border-[#22C55E]"
     >
       <Icon size={18} strokeWidth={2} className="flex-shrink-0" />
       <span>{label}</span>
@@ -53,7 +53,7 @@ function DashboardNav() {
   const navItemClass = (isActive, isOpen) =>
     `flex items-center gap-2 px-3 py-2 rounded-md text-[14px] font-medium transition-colors cursor-pointer select-none ${
       isActive || isOpen
-        ? 'bg-[#EFF6FF] text-[#2563EB]'
+        ? 'bg-[#ECFDF5] text-[#16A34A]'
         : 'text-[#475569] hover:bg-[#F8FAFC] hover:text-[#0F172A]'
     }`;
 
@@ -73,7 +73,7 @@ function DashboardNav() {
         
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white">
+          <div className="w-8 h-8 rounded-lg bg-[#22C55E] flex items-center justify-center text-white">
             <Sparkles size={18} strokeWidth={2.5} />
           </div>
           <span className="font-semibold text-[18px] tracking-tight text-[#0F172A]">
@@ -179,7 +179,7 @@ function DashboardNav() {
               }}
               className="flex items-center gap-2 hover:bg-[#F8FAFC] p-1.5 rounded-md transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-[#F6F8FB] border border-[#E2E8F0] flex items-center justify-center text-[#2563EB] font-bold text-sm">
+              <div className="w-8 h-8 rounded-full bg-[#F6F8FB] border border-[#E2E8F0] flex items-center justify-center text-[#16A34A] font-bold text-sm">
                 {user?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
               <ChevronDown size={16} className="text-[#64748B]" />
@@ -301,7 +301,7 @@ function DashboardPage() {
           <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-[#64748B]">Avg Content Score</h3>
-              <TrendingUp size={18} className="text-[#2563EB]" />
+              <TrendingUp size={18} className="text-[#16A34A]" />
             </div>
             <div className="flex items-baseline gap-2">
               <p className="text-3xl font-bold text-[#0F172A]">{stats.content}</p>
@@ -328,7 +328,7 @@ function DashboardPage() {
         <section className="mb-8">
           <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-5">
-              <div className="w-12 h-12 rounded-lg bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center text-[#2563EB] flex-shrink-0">
+              <div className="w-12 h-12 rounded-lg bg-[#ECFDF5] border border-[#BBF7D0] flex items-center justify-center text-[#16A34A] flex-shrink-0">
                 <Sparkles size={24} strokeWidth={2} />
               </div>
               <div>
@@ -340,7 +340,7 @@ function DashboardPage() {
             </div>
             <Link
               to="/coach"
-              className="flex-shrink-0 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-medium text-sm px-6 py-2.5 rounded-md transition-colors shadow-sm"
+              className="flex-shrink-0 bg-[#22C55E] hover:bg-[#16A34A] text-white font-medium text-sm px-6 py-2.5 rounded-md transition-colors shadow-sm"
             >
               Open Coach
             </Link>
@@ -372,8 +372,8 @@ function DashboardPage() {
                         itemStyle={{ fontSize: '13px', fontWeight: 500 }}
                         labelStyle={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}
                       />
-                      <Line type="monotone" dataKey="averageScore" name="Average" stroke="#2563EB" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                      <Line type="monotone" dataKey="content" name="Content" stroke="#60A5FA" strokeWidth={2} dot={{ r: 0 }} activeDot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="averageScore" name="Average" stroke="#22C55E" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                      <Line type="monotone" dataKey="content" name="Content" stroke="#86EFAC" strokeWidth={2} dot={{ r: 0 }} activeDot={{ r: 4 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -386,7 +386,7 @@ function DashboardPage() {
             <div className="bg-[#FFFFFF] border border-[#E2E8F0] rounded-xl shadow-sm h-full flex flex-col">
               <div className="px-6 py-5 border-b border-[#E2E8F0] flex items-center justify-between">
                 <h2 className="text-[16px] font-semibold text-[#0F172A]">Recent Interviews</h2>
-                <Link to="/setup" className="text-sm font-medium text-[#2563EB] hover:text-[#1D4ED8]">
+                <Link to="/setup" className="text-sm font-medium text-[#16A34A] hover:text-[#16A34A]">
                   + New
                 </Link>
               </div>
@@ -420,7 +420,7 @@ function DashboardPage() {
                           ) : (
                             <Link 
                               to={`/interview/${item._id}`}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#EFF6FF] text-[#1E40AF] border border-[#BFDBFE] text-xs font-medium hover:bg-[#DBEAFE] transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#ECFDF5] text-[#166534] border border-[#BBF7D0] text-xs font-medium hover:bg-[#DCFCE7] transition-colors"
                             >
                               <Play size={14} /> Resume
                             </Link>

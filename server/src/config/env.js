@@ -10,11 +10,12 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(12, 'JWT_SECRET must be at least 12 characters'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash'),
   CLIENT_URL: z.string().default('http://localhost:5173'),
   ADMIN_INVITE_CODE: z.string().optional(),
   EMAIL_USER: z.string().optional(),
   EMAIL_PASS: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

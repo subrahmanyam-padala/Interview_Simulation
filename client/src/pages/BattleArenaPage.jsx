@@ -3,8 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import Editor from '@monaco-editor/react';
 import { useAuth } from '../context/AuthContext';
+import { runCode as runBattleCode, submitCode as submitBattleCode } from '../api/codeApi';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const SOCKET_URL = API_BASE_URL.replace(/\/api\/?$/, '');
 
 const BattleArenaPage = () => {
   const { id: roomId } = useParams();
@@ -19,6 +21,8 @@ const BattleArenaPage = () => {
   const [language, setLanguage] = useState('javascript');
   const [timeLeft, setTimeLeft] = useState(30 * 60);
   const [battleReport, setBattleReport] = useState(null);
+  const [isRunningCode, setIsRunningCode] = useState(false);
+  const [isSubmittingCode, setIsSubmittingCode] = useState(false);
   
   const timerRef = useRef(null);
 
@@ -101,25 +105,59 @@ const BattleArenaPage = () => {
   };
 
   const runCode = () => {
-    // In a real app, this would execute code in a sandbox.
-    // For this simulation, we'll mock the execution.
-    alert('Code executed successfully against sample test cases!');
+    if (!problem) return;
+
+    setIsRunningCode(true);
+    runBattleCode({
+      language,
+      code,
+      testCases: problem.testCases || [],
+    })
+      .then((result) => {
+        if (!result?.success) {
+          alert(result?.compilationError || result?.runtimeError || result?.message || 'Code execution failed.');
+          return;
+        }
+
+        alert(`Run completed: ${result.passed}/${result.total} test cases passed.`);
+      })
+      .catch((error) => {
+        const message = error?.response?.data?.message || error?.message || 'Failed to run code.';
+        alert(message);
+      })
+      .finally(() => {
+        setIsRunningCode(false);
+      });
   };
 
   const submitCode = () => {
-    // Mocking evaluation logic
-    const isSuccess = Math.random() > 0.3; // 70% chance to pass
-    const passedTestCases = isSuccess ? problem.testCases.length : Math.floor(Math.random() * problem.testCases.length);
-    const executionTime = Math.floor(Math.random() * 100) + 10; // ms
+    if (!problem || !socket) return;
 
-    if (socket) {
-      socket.emit('submitCode', {
-        roomId,
-        executionTime,
-        passedTestCases,
-        totalTestCases: problem.testCases.length
+    setIsSubmittingCode(true);
+    submitBattleCode({
+      language,
+      code,
+    })
+      .then((result) => {
+        const parsedExecutionTime = Number.parseInt(result?.executionTime, 10);
+        const executionTime = Number.isFinite(parsedExecutionTime) ? parsedExecutionTime : 9999;
+        const passedTestCases = Number(result?.passed || 0);
+        const totalTestCases = Number(result?.total || 10);
+
+        socket.emit('submitCode', {
+          roomId,
+          executionTime,
+          passedTestCases,
+          totalTestCases,
+        });
+      })
+      .catch((error) => {
+        const message = error?.response?.data?.message || error?.message || 'Failed to submit code.';
+        alert(message);
+      })
+      .finally(() => {
+        setIsSubmittingCode(false);
       });
-    }
   };
 
   const formatTime = (seconds) => {
@@ -274,10 +312,10 @@ const BattleArenaPage = () => {
             
             <div className="flex gap-2">
               <button onClick={runCode} className="px-4 py-1.5 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-medium transition-colors border border-gray-600">
-                Run Code
+                {isRunningCode ? 'Running...' : 'Run Code'}
               </button>
               <button onClick={submitCode} className="px-4 py-1.5 rounded-md bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors shadow-lg shadow-green-900/20">
-                Submit
+                {isSubmittingCode ? 'Submitting...' : 'Submit'}
               </button>
             </div>
           </div>

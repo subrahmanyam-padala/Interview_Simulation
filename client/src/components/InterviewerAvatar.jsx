@@ -35,15 +35,28 @@ export default function InterviewerAvatar({ textToSpeak, onSpeechEnd, isListenin
     utterance.rate = 0.95; // slightly slower for clearer interview style
     utterance.pitch = gender === 'male' ? 0.9 : 1.0;
 
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => {
+    // Fallback timeout in case TTS hangs (common browser bug)
+    // Roughly 100ms per character + 3 seconds buffer
+    const maxExpectedTimeMs = Math.max(textToSpeak.length * 100, 3000) + 3000;
+    let fallbackTimeout;
+
+    const finishSpeech = () => {
+      if (fallbackTimeout) clearTimeout(fallbackTimeout);
       setIsSpeaking(false);
       if (onSpeechEnd) onSpeechEnd();
     };
+
+    fallbackTimeout = setTimeout(() => {
+      console.warn('TTS took too long or failed silently. Using fallback.');
+      if (synthRef.current.speaking) synthRef.current.cancel();
+      finishSpeech();
+    }, maxExpectedTimeMs);
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = finishSpeech;
     utterance.onerror = (e) => {
       console.error('TTS Error:', e);
-      setIsSpeaking(false);
-      if (onSpeechEnd) onSpeechEnd();
+      finishSpeech();
     };
 
     synthRef.current.speak(utterance);

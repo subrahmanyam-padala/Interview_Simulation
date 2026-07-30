@@ -1,16 +1,82 @@
-import OpenAI from 'openai';
+﻿import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../config/env.js';
 
-const openai = env.GEMINI_API_KEY
-  ? new OpenAI({
-      apiKey: env.GEMINI_API_KEY,
-      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-    })
-  : null;
+const genAI = env.GEMINI_API_KEY ? new GoogleGenerativeAI(env.GEMINI_API_KEY) : null;
+const modelCandidates = [...new Set([
+  env.GEMINI_MODEL,
+  'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-3.5-flash',
+].filter(Boolean))];
 
-const modelToUse = env.GEMINI_MODEL;
+const buildFallbackCoachResponse = ({ messages = [], interviewContext }) => {
+  const latestUserMessage = [...messages].reverse().find((message) => message.role !== 'assistant' && message.role !== 'model')?.content || '';
+  const lowerMessage = latestUserMessage.toLowerCase();
 
-// ─── System prompt ────────────────────────────────────────────────────────────
+  const isBehavioral = /behavior|team|conflict|leadership|challenge|weakness|strength|tell me about yourself|introduce yourself|project/.test(lowerMessage);
+  const isSystemDesign = /system design|scalability|architecture|database|api|microservice|microservices|cache|latency/.test(lowerMessage);
+  const isCoding = /code|algorithm|data structure|leetcode|arrays|string|tree|graph|dp|dynamic programming|stack|queue|hash/.test(lowerMessage);
+
+  const topicLine = interviewContext
+    ? `For ${interviewContext.jobRole} / ${interviewContext.topic} (${interviewContext.difficulty}).`
+    : 'For your interview practice.';
+
+  if (isCoding) {
+    return {
+      content: `I cannot reach the AI service right now, so here is a quick coding-coach fallback.
+
+${topicLine}
+
+- Start with a brute-force idea, then improve it with a better data structure or traversal.
+- State time and space complexity clearly before coding.
+- Mention edge cases: empty input, duplicates, single item, and large input.
+- If you want, send me your approach and I will help you tighten it step by step.`,
+      tokensUsed: 0,
+    };
+  }
+
+  if (isSystemDesign) {
+    return {
+      content: `I cannot reach the AI service right now, so here is a quick system-design fallback.
+
+${topicLine}
+
+- Clarify requirements first: scale, users, latency, and consistency.
+- Break the system into clients, API layer, services, storage, and cache.
+- Call out bottlenecks and trade-offs, especially read/write patterns.
+- If you share the exact prompt, I will help you structure a strong interview answer.`,
+      tokensUsed: 0,
+    };
+  }
+
+  if (isBehavioral) {
+    return {
+      content: `I cannot reach the AI service right now, so here is a quick behavioral-coach fallback.
+
+${topicLine}
+
+- Use STAR: Situation -> Task -> Action -> Result.
+- Keep the answer concrete, short, and outcome-focused.
+- Highlight what you learned and how you would handle it next time.
+- If you paste your draft answer, I will help you make it sharper.`,
+      tokensUsed: 0,
+    };
+  }
+
+  return {
+    content: `I cannot reach the AI service right now, so here is a quick coaching fallback.
+
+${topicLine}
+
+- Give a direct answer first.
+- Add one example or reason.
+- Close with the impact or takeaway.
+- Send me your draft and I will help refine it.`,
+    tokensUsed: 0,
+  };
+};
+
 const buildSystemPrompt = (interviewContext) => {
   let base = `You are an expert AI Interview Coach named "Coach AI". You help candidates:
 1. Understand and answer technical interview questions (DSA, System Design, OOP, Web, Cloud, AI/ML, etc.)
@@ -44,16 +110,49 @@ Tailor your coaching to address the weaknesses above and build on the strengths.
   return base;
 };
 
-// ─── Main coach function ──────────────────────────────────────────────────────
+const runCoachModel = async ({ modelName, systemInstruction, historyForAI }) => {
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction,
+  });
+
+  const chat = model.startChat({
+    history: historyForAI.length > 0 ? historyForAI.slice(0, -1) : [],
+    generationConfig: {
+      temperature: 0.6,
+      maxOutputTokens: 1500,
+    },
+  });
+
+  const lastMessage = historyForAI.length > 0 ? historyForAI[historyForAI.length - 1].parts[0].text : 'Hello';
+  const result = await chat.sendMessage(lastMessage);
+
+  return {
+    content: result.response.text() || 'I could not generate a response. Please try again.',
+    tokensUsed: result.response.usageMetadata?.totalTokenCount || 0,
+  };
+};
+
 export const askCoach = async ({ messages, interviewContext }) => {
-  const systemPrompt = buildSystemPrompt(interviewContext);
+  const systemInstruction = buildSystemPrompt(interviewContext);
 
-  // Convert stored messages to OpenAI format (take last 20 for token budget)
-  const historyForAI = (messages || [])
+  const rawHistory = (messages || [])
     .slice(-20)
-    .map((m) => ({ role: m.role, content: m.content }));
+    .map((message) => ({
+      role: message.role === 'assistant' || message.role === 'model' ? 'model' : 'user',
+      parts: [{ text: message.content || ' ' }],
+    }));
 
-  if (!openai) {
+  const historyForAI = [];
+  for (const message of rawHistory) {
+    if (historyForAI.length > 0 && historyForAI[historyForAI.length - 1].role === message.role) {
+      historyForAI[historyForAI.length - 1].parts[0].text += `\n\n${message.parts[0].text}`;
+    } else {
+      historyForAI.push(message);
+    }
+  }
+
+  if (!genAI) {
     return {
       content: `👋 Coach AI here! I'd love to help, but the AI API key is not configured. Please set **GEMINI_API_KEY** in the server environment.
 
@@ -66,49 +165,43 @@ In the meantime, here are some quick tips:
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: modelToUse,
-      temperature: 0.6,
-      max_tokens: 1500,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...historyForAI,
-      ],
-    });
+    for (const modelName of modelCandidates) {
+      try {
+        return await runCoachModel({ modelName, systemInstruction, historyForAI });
+      } catch (error) {
+        const status = error?.status || error?.response?.status;
+        const retryable = status === 404 || status === 429 || status === 503 || status === 400;
+        console.warn(`[coachService] Model ${modelName} failed`, error?.message || error);
+        if (!retryable) {
+          throw error;
+        }
+      }
+    }
 
-    const content = completion.choices?.[0]?.message?.content || 'I could not generate a response. Please try again.';
-    const tokensUsed = completion.usage?.total_tokens || 0;
-
-    return { content, tokensUsed };
+    return buildFallbackCoachResponse({ messages, interviewContext });
   } catch (error) {
-    console.error('[coachService] AI request failed:', error.message);
-    return {
-      content: `⚠️ I ran into a temporary issue connecting to the AI. Please try again in a moment.\n\nError: ${error.message}`,
-      tokensUsed: 0,
-    };
+    console.error('[coachService] AI request failed:', error?.message || error);
+    return buildFallbackCoachResponse({ messages, interviewContext });
   }
 };
 
-// ─── Auto-generate a chat session title from first message ──────────────────
 export const generateSessionTitle = async (firstUserMessage) => {
-  if (!openai) {
+  if (!genAI) {
     return firstUserMessage.slice(0, 50) + (firstUserMessage.length > 50 ? '…' : '');
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: modelToUse,
-      temperature: 0.3,
-      max_tokens: 20,
-      messages: [
-        {
-          role: 'system',
-          content: 'Generate a very short 4-6 word title for a chat session based on the user message. Return ONLY the title, no punctuation.',
-        },
-        { role: 'user', content: firstUserMessage.slice(0, 200) },
-      ],
+    const model = genAI.getGenerativeModel({
+      model: modelCandidates[0],
+      systemInstruction: 'Generate a very short 4-6 word title for a chat session based on the user message. Return ONLY the title, no punctuation.',
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 20,
+      },
     });
-    return completion.choices?.[0]?.message?.content?.trim() || firstUserMessage.slice(0, 50);
+
+    const result = await model.generateContent(firstUserMessage.slice(0, 200));
+    return result.response.text().trim() || firstUserMessage.slice(0, 50);
   } catch (_) {
     return firstUserMessage.slice(0, 50) + (firstUserMessage.length > 50 ? '…' : '');
   }
