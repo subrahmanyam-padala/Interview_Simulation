@@ -1,407 +1,52 @@
-\documentclass[aspectratio=169,11pt]{beamer}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
-\usepackage{graphicx}
-\usepackage{booktabs}
-\usepackage{tabularx}
-\usepackage{array}
-\usepackage{tikz}
-\usepackage{xcolor}
-\usepackage{hyperref}
-\usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit, backgrounds, calc}
-
-\definecolor{PrimaryBlue}{HTML}{2563EB}
-\definecolor{PrimaryGreen}{HTML}{16A34A}
-\definecolor{PrimaryPurple}{HTML}{7C3AED}
-\definecolor{PrimaryOrange}{HTML}{F59E0B}
-\definecolor{PrimaryTeal}{HTML}{06B6D4}
-\definecolor{DarkText}{HTML}{0F172A}
-\definecolor{SoftBg}{HTML}{F8FAFC}
-\definecolor{SoftBlue}{HTML}{EFF6FF}
-\definecolor{SoftGreen}{HTML}{ECFDF5}
-\definecolor{SoftPurple}{HTML}{F5F3FF}
-\definecolor{SoftOrange}{HTML}{FFF7ED}
-\definecolor{SoftTeal}{HTML}{ECFEFF}
-\definecolor{SoftGray}{HTML}{F1F5F9}
-
-\setbeamercolor{normal text}{fg=DarkText,bg=white}
-\setbeamercolor{frametitle}{fg=DarkText,bg=white}
-\setbeamercolor{title}{fg=DarkText}
-\setbeamercolor{structure}{fg=PrimaryBlue}
-\setbeamercolor{block title}{fg=white,bg=PrimaryBlue}
-\setbeamercolor{block body}{bg=SoftBg,fg=DarkText}
-\setbeamercolor{itemize item}{fg=PrimaryBlue}
-\setbeamercolor{itemize subitem}{fg=PrimaryGreen}
-\setbeamertemplate{navigation symbols}{}
-\setbeamertemplate{footline}[frame number]
-\setbeamertemplate{blocks}[rounded][shadow=false]
-\setlength{\parskip}{0.35em}
-\setlength{\tabcolsep}{6pt}
-
-\title{AI-Driven Interview Simulation \& Recruitment System}
-\subtitle{Project Presentation in LaTeX}
-\author{Prepared for Academic Submission}
-\date{\today}
-
-\begin{document}
-
-\begin{frame}[plain]
-  \vspace{0.35cm}
-  {\color{PrimaryBlue}\rule{0.18\textwidth}{1.4pt}}\\[0.35cm]
-  {\Huge\bfseries AI-Driven Interview Simulation \& Recruitment System}\\[0.3cm]
-  {\Large A modern platform for interviews, coding practice, peer collaboration, coaching, and recruitment}\\[0.6cm]
-  \begin{columns}[T,onlytextwidth]
-    \column{0.58\textwidth}
-    \begin{block}{Project Focus}
-      \begin{itemize}
-        \item Real-time AI interview practice
-        \item Coding, peer, and recruiter workflows
-        \item Voice, face, and session analytics
-        \item Roadmaps, reports, and coaching support
-      \end{itemize}
-    \end{block}
-    \column{0.38\textwidth}
-    \begin{block}{Key Stack}
-      \small
-      React \;\textbullet\; Vite \;\textbullet\; Tailwind\\
-      Node.js \;\textbullet\; Express\\
-      MongoDB \;\textbullet\; Mongoose\\
-      Gemini \;\textbullet\; Socket.IO \;\textbullet\; WebRTC
-    \end{block}
-  \end{columns}
-\end{frame}
-
-\begin{frame}{Agenda}
-  \begin{enumerate}
-    \item Problem Statement
-    \item Proposed Solution
-    \item System Overview
-    \item Architecture Diagram
-    \item Technology Stack
-    \item Core Modules and AI Flow
-    \item Coding and Peer Features
-    \item Security and Data Handling
-    \item Implementation Phases
-    \item Applications and Future Scope
-    \item Conclusion and References
-  \end{enumerate}
-\end{frame}
-
-\begin{frame}{Problem Statement}
-  \begin{itemize}
-    \item Interview preparation is usually split across multiple tools, which makes learning fragmented.
-    \item Technical assessment, spoken answers, and behavioral feedback are often measured separately.
-    \item Recruiters and learners need a unified platform that can handle live interaction, scoring, and reporting.
-    \item Most existing tools do not combine coding, communication, face analysis, and coaching in one workflow.
-    \item This project addresses that gap with a browser-based AI interview environment.
+\documentclass[aspectratio=169,11pt]{beamer}\n\usepackage[utf8]{inputenc}\n\usepackage[T1]{fontenc}\n\usepackage{lmodern}\n\usepackage{graphicx}\n\usepackage{booktabs}\n\usepackage{tabularx}\n\usepackage{array}\n\usepackage{tikz}\n\usepackage{xcolor}\n\usepackage{hyperref}\n\usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit, backgrounds, calc}\n\n\definecolor{PrimaryBlue}{HTML}{2563EB}\n\definecolor{PrimaryGreen}{HTML}{16A34A}\n\definecolor{PrimaryPurple}{HTML}{7C3AED}\n\definecolor{PrimaryOrange}{HTML}{F59E0B}\n\definecolor{PrimaryTeal}{HTML}{06B6D4}\n\definecolor{DarkText}{HTML}{0F172A}\n\definecolor{SoftBg}{HTML}{F8FAFC}\n\definecolor{SoftBlue}{HTML}{EFF6FF}\n\definecolor{SoftGreen}{HTML}{ECFDF5}\n\definecolor{SoftPurple}{HTML}{F5F3FF}\n\definecolor{SoftOrange}{HTML}{FFF7ED}\n\definecolor{SoftTeal}{HTML}{ECFEFF}\n\definecolor{SoftGray}{HTML}{F1F5F9}\n\n\setbeamercolor{normal text}{fg=DarkText,bg=white}\n\setbeamercolor{frametitle}{fg=DarkText,bg=white}\n\setbeamercolor{title}{fg=DarkText}\n\setbeamercolor{structure}{fg=PrimaryBlue}\n\setbeamercolor{block title}{fg=white,bg=PrimaryBlue}\n\setbeamercolor{block body}{bg=SoftBg,fg=DarkText}\n\setbeamercolor{itemize item}{fg=PrimaryBlue}\n\setbeamercolor{itemize subitem}{fg=PrimaryGreen}\n\setbeamertemplate{navigation symbols}{}\n\setbeamertemplate{footline}[frame number]\n\setbeamertemplate{blocks}[rounded][shadow=false]\n\setlength{\parskip}{0.35em}\n\setlength{\tabcolsep}{6pt}\n\n\title{AI-Driven Interview Simulation \& Recruitment System}\n\subtitle{Project Presentation in LaTeX}\n\author{Prepared for Academic Submission}\n\date{\today}\n\n\begin{document}\n\n\begin{frame}[plain]\n  \vspace{0.35cm}\n  {\color{PrimaryBlue}\rule{0.18\textwidth}{1.4pt}}\\[0.35cm]\n  {\Huge\bfseries AI-Driven Interview Simulation \& Recruitment System}\\[0.3cm]\n  {\Large A modern platform for interviews, coding practice, peer collaboration, coaching, and recruitment}\\[0.6cm]\n  \begin{columns}[T,onlytextwidth]\n    \column{0.58\textwidth}\n    \begin{block}{Project Focus}\n      \begin{itemize}\n        \item Real-time AI interview practice\n        \item Coding, peer, and recruiter workflows\n        \item Voice, face, and session analytics\n        \item Roadmaps, reports, and coaching support\n      \end{itemize}\n    \end{block}\n    \column{0.38\textwidth}\n    \begin{block}{Key Stack}\n      \small\n      React \;\textbullet\; Vite \;\textbullet\; Tailwind\\\n      Node.js \;\textbullet\; Express\\\n      MongoDB \;\textbullet\; Mongoose\\\n      Gemini \;\textbullet\; Socket.IO \;\textbullet\; WebRTC\n    \end{block}\n  \end{columns}\n\end{frame}\n\n\begin{frame}{Agenda}\n  \begin{enumerate}\n    \item Abstract\n    \item Problem Statement\n    \item Difference Between Traditional and Modern Approach\n    \item Proposed Solution\n    \item System Overview\n    \item Architecture Diagram\n    \item Technology Stack\n    \item Core Modules and AI Flow\n    \item Agents Used\n    \item Algorithms Used\n    \item Database Design and API Summary\n    \item Security and Data Handling\n    \item Implementation Phases\n    \item Applications and Future Scope\n    \item Conclusion and References\n  \end{enumerate}\n\end{frame}\n\n\begin{frame}{Abstract}\n  \begin{itemize}\n    \item The project is a full-stack AI-driven interview simulation and recruitment platform.\n    \item It combines interview practice, coding assessment, peer collaboration, recruiter evaluation, and career guidance in one application.\n    \item The system captures both technical and communication signals during live interaction.\n\begin{frame}{Difference Between Traditional and Modern Approach}\n  \small\n  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.3cm} X X}\n    \toprule\n    \textbf{Aspect} & \textbf{Traditional Approach} & \textbf{This Project} \\\n    \midrule\n    Interview practice & Separate coding sites, separate mock interview tools, and manual note-taking & One unified browser platform for AI, coding, peer, recruiter, and coach flows \\\n    Feedback & Mostly manual and delayed & Immediate, AI-assisted, and structured feedback \\\n    Evaluation & Focused on answers only & Considers voice, pace, confidence, face cues, and correctness \\\n    Realtime work & Limited or missing & Socket.IO and WebRTC support live interaction \\\n    Data storage & Scattered or undocumented & Centralized MongoDB storage with reports and history \\\n    \bottomrule\n  \end{tabularx}\n\end{frame}\n\n\begin{frame}{Proposed Solution}\n  \begin{block}{What the platform provides}\n    A modular interview system where a user can sign in, select an interview mode, answer AI-generated questions, solve coding tasks, and receive structured feedback immediately after the session.\n  \end{block}\n  \begin{itemize}\n    \item One interface for AI interview, coding interview, peer mock interview, recruiter portal, coach, and roadmap.\n    \item Realtime voice and facial signal capture for richer evaluation.\n    \item Secure authentication and persistent session storage.\n    \item Scalable design so future modules can be added without changing the core flow.\n  \end{itemize}\n\end{frame}\n\n    \item It supports mock interviews, coding battles, recruiter assessments, and peer-to-peer practice.\n    \item The result is a practical learning and hiring workflow that improves performance measurement and feedback quality.\n  \end{itemize}\n\end{frame}\n\n\n\begin{frame}{Problem Statement}\n  \begin{itemize}\n    \item Interview preparation is usually split across multiple tools, which makes learning fragmented.\n    \item Technical assessment, spoken answers, and behavioral feedback are often measured separately.\n    \item Recruiters and learners need a unified platform that can handle live interaction, scoring, and reporting.\n    \item Most existing tools do not combine coding, communication, face analysis, and coaching in one workflow.\n    \item This project addresses that gap with a browser-based AI interview environment.\n  \end{itemize}\n\end{frame}\n\n\begin{frame}{Proposed Solution}\n  \begin{block}{What the platform provides}\n    A modular interview system where a user can sign in, select an interview mode, answer AI-generated questions, solve coding tasks, and receive structured feedback immediately after the session.\n  \end{block}\n  \begin{itemize}\n    \item One interface for AI interview, coding interview, peer mock interview, recruiter portal, coach, and roadmap.\n    \item Realtime voice and facial signal capture for richer evaluation.\n    \item Secure authentication and persistent session storage.\n    \item Scalable design so future modules can be added without changing the core flow.\n  \end{itemize}\n\end{frame}\n\n\begin{frame}{System Overview}\n  \begin{columns}[T,onlytextwidth]\n    \column{0.55\textwidth}\n    \begin{block}{How it works}\n      \begin{enumerate}\n        \item User logs in and selects an interview journey.\n        \item Frontend opens the live workspace and captures browser signals.\n        \item Backend coordinates question generation and response handling.\n        \item AI services create interview prompts and feedback.\n        \item Results are stored for reports, analytics, and roadmaps.\n      \end{enumerate}\n    \end{block}\n    \column{0.42\textwidth}\n    \begin{block}{Main user journeys}\n      \small\n      \begin{itemize}\n        \item AI Interview\n        \item Coding Interview\n        \item Coding Battle\n        \item Peer Mock Interview\n        \item AI Coach and Roadmap\n        \item Recruiter Portal\n      \end{itemize}\n    \end{block}\n  \end{columns}\n\end{frame}\n\n\begin{frame}{Architecture Diagram}\n\centering\n\vspace{-0.25cm}\n\scalebox{0.72}{%\n\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\small}, transform shape]\n  % Frontend\n  \node[draw=PrimaryBlue, fill=SoftBlue, rounded corners=12pt, thick, minimum width=5.9cm, minimum height=1.45cm, align=center] (ui) at (0,4.35) {\n    \begin{tabular}{@{}c@{\hspace{0.25cm}}c@{}}\n      \begin{tikzpicture}[baseline=-0.6ex, scale=0.32]\n        \draw[PrimaryBlue, line width=1.6pt, rounded corners=2pt] (-1.5,-0.7) rectangle (1.5,1.0);\n        \draw[PrimaryBlue, line width=1.6pt] (-0.95,-1.0) -- (0.95,-1.0);\n        \draw[PrimaryBlue, line width=1.6pt] (0,-0.7) -- (0,-1.35);\n      \end{tikzpicture}\n      & \begin{tabular}{c}\textbf{Frontend Web App}\\React + Vite + Tailwind\end{tabular}\n    \end{tabular}\n  };\n\n  % Orchestrator\n  \node[draw=PrimaryGreen, fill=SoftGreen, rounded corners=12pt, thick, minimum width=5.9cm, minimum height=1.45cm, align=center] (api) at (0,2.2) {\n    \begin{tabular}{@{}c@{\hspace{0.25cm}}c@{}}\n      \begin{tikzpicture}[baseline=-0.6ex, scale=0.32]\n        \draw[PrimaryGreen, line width=1.4pt, rounded corners=2pt] (-1.25,-1.05) rectangle (1.25,1.15);\n        \foreach \y in {0.55,0.0,-0.55} {\fill[PrimaryGreen] (-0.75,\y) circle (0.10); \fill[PrimaryGreen] (0,\y) circle (0.10); \fill[PrimaryGreen] (0.75,\y) circle (0.10);}\n        \draw[PrimaryGreen, line width=1.2pt] (-0.95,0.75) -- (0.95,0.75);\n        \draw[PrimaryGreen, line width=1.2pt] (-0.95,0.20) -- (0.95,0.20);\n        \draw[PrimaryGreen, line width=1.2pt] (-0.95,-0.35) -- (0.95,-0.35);\n      \end{tikzpicture}\n      & \begin{tabular}{c}\textbf{Application Orchestrator}\\Node.js + Express + JWT\end{tabular}\n    \end{tabular}\n  };\n\n  % Left branch\n  \node[draw=PrimaryPurple, fill=SoftPurple, rounded corners=12pt, thick, minimum width=4.7cm, minimum height=1.35cm, align=center] (ai) at (-5.1,-0.2) {\n    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}\n      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]\n        \draw[PrimaryPurple, line width=1.2pt] (0,0) circle (0.45);\n        \draw[PrimaryPurple, line width=1.2pt] (0.0,0.45) -- (0.0,1.05);\n        \draw[PrimaryPurple, line width=1.2pt] (0.0,-0.45) -- (0.0,-1.05);\n        \draw[PrimaryPurple, line width=1.2pt] (-0.45,0.0) -- (-1.05,0.0);\n        \draw[PrimaryPurple, line width=1.2pt] (0.45,0.0) -- (1.05,0.0);\n        \draw[PrimaryPurple, line width=1.2pt] (-0.33,0.33) -- (-0.75,0.75);\n        \draw[PrimaryPurple, line width=1.2pt] (0.33,0.33) -- (0.75,0.75);\n        \draw[PrimaryPurple, line width=1.2pt] (-0.33,-0.33) -- (-0.75,-0.75);\n        \draw[PrimaryPurple, line width=1.2pt] (0.33,-0.33) -- (0.75,-0.75);\n      \end{tikzpicture}\n      & \begin{tabular}{c}\textbf{AI Services}\\Gemini + Prompt Engine\end{tabular}\n    \end{tabular}\n  };\n  \node[draw=PrimaryBlue, fill=SoftBlue, rounded corners=12pt, thick, minimum width=4.7cm, minimum height=1.35cm, align=center] (db) at (-5.1,-3.55) {\n    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}\n      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]\n        \draw[PrimaryBlue, line width=1.3pt] (0,0.9) ellipse (0.55 and 0.22);\n        \draw[PrimaryBlue, line width=1.3pt] (-0.55,0.9) -- (-0.55,-1.0);\n        \draw[PrimaryBlue, line width=1.3pt] (0.55,0.9) -- (0.55,-1.0);\n        \draw[PrimaryBlue, line width=1.3pt] (0,-1.0) ellipse (0.55 and 0.22);\n        \draw[PrimaryBlue, line width=1.3pt] (-0.55,0.15) arc (180:360:0.55 and 0.22);\n        \draw[PrimaryBlue, line width=1.3pt] (-0.55,-0.40) arc (180:360:0.55 and 0.22);\n      \end{tikzpicture}\n      & \begin{tabular}{c}\textbf{Data Layer}\\MongoDB + Mongoose\end{tabular}\n    \end{tabular}\n  };\n\n  % Right branch\n  \node[draw=PrimaryTeal, fill=SoftTeal, rounded corners=12pt, thick, minimum width=4.9cm, minimum height=1.35cm, align=center] (browser) at (5.15,-0.1) {\n    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}\n      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]\n        \draw[PrimaryTeal, line width=1.3pt] (0,0.8) circle (0.55);\n        \draw[PrimaryTeal, line width=1.3pt] (0.1,0.15) .. controls (0.55,0.45) and (0.55,-0.3) .. (0.1,-0.05);\n        \draw[PrimaryTeal, line width=1.3pt] (0.55,0.25) .. controls (0.95,0.45) and (0.95,-0.35) .. (0.55,-0.15);\n        \draw[PrimaryTeal, line width=1.3pt] (1.0,0.05) .. controls (1.25,0.25) and (1.25,-0.15) .. (1.0,-0.25);\n      \end{tikzpicture}\n      & \begin{tabular}{c}\textbf{Browser Intelligence}\\Speech + Face + Voice\end{tabular}\n    \end{tabular}\n  };\n  \node[draw=PrimaryOrange, fill=SoftOrange, rounded corners=12pt, thick, minimum width=4.7cm, minimum height=1.35cm, align=center] (rt) at (0,-1.95) {\n    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}\n      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]\n        \draw[PrimaryOrange, line width=1.2pt] (0,0) arc (180:360:0.55 and 0.22);\n        \draw[PrimaryOrange, line width=1.2pt] (0,0.38) arc (180:360:0.85 and 0.34);\n        \draw[PrimaryOrange, line width=1.2pt] (0,0.76) arc (180:360:1.15 and 0.46);\n        \fill[PrimaryOrange] (0,-0.48) circle (0.12);\n      \end{tikzpicture}\n      & \begin{tabular}{c}\textbf{Realtime Layer}\\Socket.IO + WebRTC\end{tabular}\n    \end{tabular}\n  };\n  \node[draw=PrimaryGreen, fill=SoftGreen, rounded corners=12pt, thick, minimum width=5.1cm, minimum height=1.35cm, align=center] (mod) at (5.15,-4.0) {\n    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}\n      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]\n        \fill[PrimaryGreen] (-0.65,0.2) circle (0.30);\n        \fill[PrimaryGreen] (0,0.45) circle (0.36);\n        \fill[PrimaryGreen] (0.65,0.2) circle (0.30);\n        \fill[PrimaryGreen] (-0.9,-0.15) circle (0.18);\n        \fill[PrimaryGreen] (-0.3,-0.15) circle (0.18);\n        \fill[PrimaryGreen] (0.3,-0.15) circle (0.18);\n        \fill[PrimaryGreen] (0.9,-0.15) circle (0.18);\n      \end{tikzpicture}\n      & \begin{tabular}{c}\textbf{Interview Modules}\\AI, Coding, Peer, Recruiter, Coach\end{tabular}\n    \end{tabular}\n  };\n\n  % Connections\n  \draw[-{Latex[length=2.8mm]}, thick, PrimaryBlue] (ui) -- node[right, xshift=2pt] {UI actions} (api);\n  \draw[-{Latex[length=2.8mm]}, thick, PrimaryGreen] (api) -- node[above left] {Prompts} (ai);\n  \draw[-{Latex[length=2.8mm]}, thick, PrimaryPurple] (api) -- node[above right] {Signals} (browser);\n  \draw[-{Latex[length=2.8mm]}, thick, PrimaryTeal] (api) -- node[right] {Sessions} (rt);\n  \draw[-{Latex[length=2.8mm]}, thick, PrimaryOrange] (ai) -- node[left] {Reports} (db);\n  \draw[-{Latex[length=2.8mm]}, thick, PrimaryBlue] (browser.south west) to[bend right=18] node[midway, above] {Metrics} (rt.north east);\n  \draw[-{Latex[length=2.8mm]}, thick, PrimaryGreen] (rt.south east) to[bend left=14] node[midway, above] {Room sync} (mod.north west);\n  \draw[-{Latex[length=2.8mm]}, thick, PrimaryPurple] (db.east) -- node[below] {History} (mod.west);\n\end{tikzpicture}%\n}\n\end{frame}\n\begin{frame}{Technology Stack}\n  \small\n  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3cm} X p{4cm}}\n    \toprule\n    \textbf{Layer} & \textbf{Technology} & \textbf{Purpose} \\\n    \midrule\n    Frontend & React, Vite, Tailwind CSS & Responsive UI and live interview workspace \\\n    Backend & Node.js, Express & Routing, authentication, and orchestration \\\n    Database & MongoDB, Mongoose & Session, user, and report storage \\\n    AI Layer & Gemini prompt pipeline & Question generation and feedback \\\n    Realtime & Socket.IO, WebRTC & Peer rooms and live collaboration \\\n    Browser APIs & Web Speech API, face analysis & Voice capture and non-verbal signals \\\n    \bottomrule\n  \end{tabularx}\n\end{frame}\n\negin{frame}{Agents Used}
+  egin{itemize}
+    \item 	extbf{Interview Agent:} Generates the next interview question and controls session flow.
+    \item 	extbf{Coding Agent:} Presents problems, test cases, and code execution tasks.
+    \item 	extbf{Coach Agent:} Gives improvement advice, roadmap suggestions, and learning guidance.
+    \item 	extbf{Browser Intelligence Agent:} Collects speech and face signals inside the client.
+    \item 	extbf{Realtime Room Agent:} Handles peer and collaborative interaction using socket events.
+    \item 	extbf{Recruiter Agent:} Supports scheduling, reviewing, and report-based evaluation.
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Proposed Solution}
-  \begin{block}{What the platform provides}
-    A modular interview system where a user can sign in, select an interview mode, answer AI-generated questions, solve coding tasks, and receive structured feedback immediately after the session.
-  \end{block}
-  \begin{itemize}
-    \item One interface for AI interview, coding interview, peer mock interview, recruiter portal, coach, and roadmap.
-    \item Realtime voice and facial signal capture for richer evaluation.
-    \item Secure authentication and persistent session storage.
-    \item Scalable design so future modules can be added without changing the core flow.
+egin{frame}{Algorithms Used}
+  egin{itemize}
+    \item Prompt chaining for follow-up interview questions.
+    \item Speech-to-text processing for voice responses.
+    \item Face detection and non-verbal signal monitoring.
+    \item JWT authentication for secure session validation.
+    \item WebSocket event flow for realtime rooms and collaboration.
+    \item Test-case execution and result comparison for coding tasks.
+    \item Priority-based roadmap generation from weak topics and user data.
   \end{itemize}
 \end{frame}
 
-\begin{frame}{System Overview}
-  \begin{columns}[T,onlytextwidth]
-    \column{0.55\textwidth}
-    \begin{block}{How it works}
-      \begin{enumerate}
-        \item User logs in and selects an interview journey.
-        \item Frontend opens the live workspace and captures browser signals.
-        \item Backend coordinates question generation and response handling.
-        \item AI services create interview prompts and feedback.
-        \item Results are stored for reports, analytics, and roadmaps.
-      \end{enumerate}
-    \end{block}
-    \column{0.42\textwidth}
-    \begin{block}{Main user journeys}
-      \small
-      \begin{itemize}
-        \item AI Interview
-        \item Coding Interview
-        \item Coding Battle
-        \item Peer Mock Interview
-        \item AI Coach and Roadmap
-        \item Recruiter Portal
-      \end{itemize}
-    \end{block}
-  \end{columns}
-\end{frame}
-
-\begin{frame}{Architecture Diagram}
-\centering
-\vspace{-0.25cm}
-\scalebox{0.72}{%
-\begin{tikzpicture}[x=1cm,y=1cm, every node/.style={font=\small}, transform shape]
-  % Frontend
-  \node[draw=PrimaryBlue, fill=SoftBlue, rounded corners=12pt, thick, minimum width=5.9cm, minimum height=1.45cm, align=center] (ui) at (0,4.35) {
-    \begin{tabular}{@{}c@{\hspace{0.25cm}}c@{}}
-      \begin{tikzpicture}[baseline=-0.6ex, scale=0.32]
-        \draw[PrimaryBlue, line width=1.6pt, rounded corners=2pt] (-1.5,-0.7) rectangle (1.5,1.0);
-        \draw[PrimaryBlue, line width=1.6pt] (-0.95,-1.0) -- (0.95,-1.0);
-        \draw[PrimaryBlue, line width=1.6pt] (0,-0.7) -- (0,-1.35);
-      \end{tikzpicture}
-      & \begin{tabular}{c}\textbf{Frontend Web App}\\React + Vite + Tailwind\end{tabular}
-    \end{tabular}
-  };
-
-  % Orchestrator
-  \node[draw=PrimaryGreen, fill=SoftGreen, rounded corners=12pt, thick, minimum width=5.9cm, minimum height=1.45cm, align=center] (api) at (0,2.2) {
-    \begin{tabular}{@{}c@{\hspace{0.25cm}}c@{}}
-      \begin{tikzpicture}[baseline=-0.6ex, scale=0.32]
-        \draw[PrimaryGreen, line width=1.4pt, rounded corners=2pt] (-1.25,-1.05) rectangle (1.25,1.15);
-        \foreach \y in {0.55,0.0,-0.55} {\fill[PrimaryGreen] (-0.75,\y) circle (0.10); \fill[PrimaryGreen] (0,\y) circle (0.10); \fill[PrimaryGreen] (0.75,\y) circle (0.10);}
-        \draw[PrimaryGreen, line width=1.2pt] (-0.95,0.75) -- (0.95,0.75);
-        \draw[PrimaryGreen, line width=1.2pt] (-0.95,0.20) -- (0.95,0.20);
-        \draw[PrimaryGreen, line width=1.2pt] (-0.95,-0.35) -- (0.95,-0.35);
-      \end{tikzpicture}
-      & \begin{tabular}{c}\textbf{Application Orchestrator}\\Node.js + Express + JWT\end{tabular}
-    \end{tabular}
-  };
-
-  % Left branch
-  \node[draw=PrimaryPurple, fill=SoftPurple, rounded corners=12pt, thick, minimum width=4.7cm, minimum height=1.35cm, align=center] (ai) at (-5.1,-0.2) {
-    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}
-      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]
-        \draw[PrimaryPurple, line width=1.2pt] (0,0) circle (0.45);
-        \draw[PrimaryPurple, line width=1.2pt] (0.0,0.45) -- (0.0,1.05);
-        \draw[PrimaryPurple, line width=1.2pt] (0.0,-0.45) -- (0.0,-1.05);
-        \draw[PrimaryPurple, line width=1.2pt] (-0.45,0.0) -- (-1.05,0.0);
-        \draw[PrimaryPurple, line width=1.2pt] (0.45,0.0) -- (1.05,0.0);
-        \draw[PrimaryPurple, line width=1.2pt] (-0.33,0.33) -- (-0.75,0.75);
-        \draw[PrimaryPurple, line width=1.2pt] (0.33,0.33) -- (0.75,0.75);
-        \draw[PrimaryPurple, line width=1.2pt] (-0.33,-0.33) -- (-0.75,-0.75);
-        \draw[PrimaryPurple, line width=1.2pt] (0.33,-0.33) -- (0.75,-0.75);
-      \end{tikzpicture}
-      & \begin{tabular}{c}\textbf{AI Services}\\Gemini + Prompt Engine\end{tabular}
-    \end{tabular}
-  };
-  \node[draw=PrimaryBlue, fill=SoftBlue, rounded corners=12pt, thick, minimum width=4.7cm, minimum height=1.35cm, align=center] (db) at (-5.1,-3.55) {
-    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}
-      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]
-        \draw[PrimaryBlue, line width=1.3pt] (0,0.9) ellipse (0.55 and 0.22);
-        \draw[PrimaryBlue, line width=1.3pt] (-0.55,0.9) -- (-0.55,-1.0);
-        \draw[PrimaryBlue, line width=1.3pt] (0.55,0.9) -- (0.55,-1.0);
-        \draw[PrimaryBlue, line width=1.3pt] (0,-1.0) ellipse (0.55 and 0.22);
-        \draw[PrimaryBlue, line width=1.3pt] (-0.55,0.15) arc (180:360:0.55 and 0.22);
-        \draw[PrimaryBlue, line width=1.3pt] (-0.55,-0.40) arc (180:360:0.55 and 0.22);
-      \end{tikzpicture}
-      & \begin{tabular}{c}\textbf{Data Layer}\\MongoDB + Mongoose\end{tabular}
-    \end{tabular}
-  };
-
-  % Right branch
-  \node[draw=PrimaryTeal, fill=SoftTeal, rounded corners=12pt, thick, minimum width=4.9cm, minimum height=1.35cm, align=center] (browser) at (5.15,-0.1) {
-    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}
-      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]
-        \draw[PrimaryTeal, line width=1.3pt] (0,0.8) circle (0.55);
-        \draw[PrimaryTeal, line width=1.3pt] (0.1,0.15) .. controls (0.55,0.45) and (0.55,-0.3) .. (0.1,-0.05);
-        \draw[PrimaryTeal, line width=1.3pt] (0.55,0.25) .. controls (0.95,0.45) and (0.95,-0.35) .. (0.55,-0.15);
-        \draw[PrimaryTeal, line width=1.3pt] (1.0,0.05) .. controls (1.25,0.25) and (1.25,-0.15) .. (1.0,-0.25);
-      \end{tikzpicture}
-      & \begin{tabular}{c}\textbf{Browser Intelligence}\\Speech + Face + Voice\end{tabular}
-    \end{tabular}
-  };
-  \node[draw=PrimaryOrange, fill=SoftOrange, rounded corners=12pt, thick, minimum width=4.7cm, minimum height=1.35cm, align=center] (rt) at (0,-1.95) {
-    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}
-      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]
-        \draw[PrimaryOrange, line width=1.2pt] (0,0) arc (180:360:0.55 and 0.22);
-        \draw[PrimaryOrange, line width=1.2pt] (0,0.38) arc (180:360:0.85 and 0.34);
-        \draw[PrimaryOrange, line width=1.2pt] (0,0.76) arc (180:360:1.15 and 0.46);
-        \fill[PrimaryOrange] (0,-0.48) circle (0.12);
-      \end{tikzpicture}
-      & \begin{tabular}{c}\textbf{Realtime Layer}\\Socket.IO + WebRTC\end{tabular}
-    \end{tabular}
-  };
-  \node[draw=PrimaryGreen, fill=SoftGreen, rounded corners=12pt, thick, minimum width=5.1cm, minimum height=1.35cm, align=center] (mod) at (5.15,-4.0) {
-    \begin{tabular}{@{}c@{\hspace{0.22cm}}c@{}}
-      \begin{tikzpicture}[baseline=-0.6ex, scale=0.30]
-        \fill[PrimaryGreen] (-0.65,0.2) circle (0.30);
-        \fill[PrimaryGreen] (0,0.45) circle (0.36);
-        \fill[PrimaryGreen] (0.65,0.2) circle (0.30);
-        \fill[PrimaryGreen] (-0.9,-0.15) circle (0.18);
-        \fill[PrimaryGreen] (-0.3,-0.15) circle (0.18);
-        \fill[PrimaryGreen] (0.3,-0.15) circle (0.18);
-        \fill[PrimaryGreen] (0.9,-0.15) circle (0.18);
-      \end{tikzpicture}
-      & \begin{tabular}{c}\textbf{Interview Modules}\\AI, Coding, Peer, Recruiter, Coach\end{tabular}
-    \end{tabular}
-  };
-
-  % Connections
-  \draw[-{Latex[length=2.8mm]}, thick, PrimaryBlue] (ui) -- node[right, xshift=2pt] {UI actions} (api);
-  \draw[-{Latex[length=2.8mm]}, thick, PrimaryGreen] (api) -- node[above left] {Prompts} (ai);
-  \draw[-{Latex[length=2.8mm]}, thick, PrimaryPurple] (api) -- node[above right] {Signals} (browser);
-  \draw[-{Latex[length=2.8mm]}, thick, PrimaryTeal] (api) -- node[right] {Sessions} (rt);
-  \draw[-{Latex[length=2.8mm]}, thick, PrimaryOrange] (ai) -- node[left] {Reports} (db);
-  \draw[-{Latex[length=2.8mm]}, thick, PrimaryBlue] (browser.south west) to[bend right=18] node[midway, above] {Metrics} (rt.north east);
-  \draw[-{Latex[length=2.8mm]}, thick, PrimaryGreen] (rt.south east) to[bend left=14] node[midway, above] {Room sync} (mod.north west);
-  \draw[-{Latex[length=2.8mm]}, thick, PrimaryPurple] (db.east) -- node[below] {History} (mod.west);
-\end{tikzpicture}%
-}
-\end{frame}
-\begin{frame}{Technology Stack}
+egin{frame}{Database Design and API Summary}
   \small
-  \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3cm} X p{4cm}}
-    \toprule
-    \textbf{Layer} & \textbf{Technology} & \textbf{Purpose} \\
-    \midrule
-    Frontend & React, Vite, Tailwind CSS & Responsive UI and live interview workspace \\
-    Backend & Node.js, Express & Routing, authentication, and orchestration \\
-    Database & MongoDB, Mongoose & Session, user, and report storage \\
-    AI Layer & Gemini prompt pipeline & Question generation and feedback \\
-    Realtime & Socket.IO, WebRTC & Peer rooms and live collaboration \\
-    Browser APIs & Web Speech API, face analysis & Voice capture and non-verbal signals \\
-    \bottomrule
-  \end{tabularx}
-\end{frame}
-
-\begin{frame}{Core Modules}
-  \begin{columns}[T,onlytextwidth]
-    \column{0.48\textwidth}
-    \begin{block}{Interview modules}
-      \begin{itemize}
-        \item AI Interview
-        \item Coding Interview
-        \item Recruiter Portal
-        \item Interview History
+  egin{columns}[T,onlytextwidth]
+    \column{0.48	extwidth}
+    egin{block}{Database collections}
+      egin{itemize}
+        \item Users
+        \item Interviews
+        \item Code submissions
+        \item Roadmaps
+        \item Reports
+        \item Peer room records
       \end{itemize}
     \end{block}
-    \column{0.48\textwidth}
-    \begin{block}{Practice and growth modules}
-      \begin{itemize}
-        \item AI Coach
-        \item Learning Roadmaps
-        \item Resume-based guidance
-        \item Progress tracking
-      \end{itemize}
-    \end{block}
-  \end{columns}
-  \vspace{0.25cm}
-  The platform groups these modules under one authentication and navigation system, so the experience stays consistent across the entire application.
-\end{frame}
-
-\begin{frame}{AI Interview Flow}
-  \begin{enumerate}
-    \item The interviewer welcomes the candidate and begins with an introductory question.
-    \item The candidate answers through speech or text input.
-    \item The backend captures the response and sends it to the AI prompt engine.
-    \item The AI generates the next question based on the current interview stage.
-    \item Feedback and evaluation signals are stored for report generation.
-  \end{enumerate}
-  \begin{block}{What makes it useful}
-    The flow simulates a realistic interview rhythm while keeping the session structured, repeatable, and measurable.
-  \end{block}
-\end{frame}
-
-\begin{frame}{Coding Interview and Coding Battle}
-  \begin{columns}[T,onlytextwidth]
-    \column{0.48\textwidth}
-    \begin{block}{Coding interview}
-      \begin{itemize}
-        \item Problem statement with examples and constraints
-        \item Integrated code editor
-        \item Test-case based validation
-        \item Run and submit workflow
-      \end{itemize}
-    \end{block}
-    \column{0.48\textwidth}
-    \begin{block}{Coding battle}
-      \begin{itemize}
-        \item Competitive coding style challenge
-        \item Time-aware problem solving
-        \item Performance comparison inside a session
-        \item Better preparation for live contests
+    \column{0.48	extwidth}
+    egin{block}{Important APIs}
+      egin{itemize}
+        \item 	exttt{/api/auth/register}
+        \item 	exttt{/api/auth/login}
+        \item 	exttt{/api/auth/send-otp}
+        \item 	exttt{/api/interviews}
+        \item 	exttt{/api/code}
+        \item 	exttt{/api/roadmaps}
       \end{itemize}
     \end{block}
   \end{columns}
 \end{frame}
 
-\begin{frame}{Peer Mock Interview and Recruiter Portal}
-  \begin{columns}[T,onlytextwidth]
-    \column{0.52\textwidth}
-    \begin{block}{Peer mock interview}
-      \begin{itemize}
-        \item User-to-user interview rooms
-        \item Live communication over realtime channels
-        \item Shared practice with the same domain or role
-      \end{itemize}
-    \end{block}
-    \column{0.42\textwidth}
-    \begin{block}{Recruiter portal}
-      \begin{itemize}
-        \item Schedule interviews
-        \item Review candidate performance
-        \item Track reports and history
-      \end{itemize}
-    \end{block}
-  \end{columns}
-\end{frame}
-
-\begin{frame}{Security and Data Handling}
-  \begin{itemize}
-    \item JWT authentication protects user sessions.
-    \item Sensitive workflows stay inside backend controllers and services.
-    \item MongoDB stores user profiles, interview results, reports, and roadmap progress.
-    \item Realtime events are managed separately from persistent data.
-    \item The browser only captures the signals needed for analysis and feedback.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{Implementation Phases}
-  \begin{enumerate}
-    \item Authentication and role-based navigation
-    \item Interview setup and live workspace
-    \item AI question generation and feedback flow
-    \item Coding editor and test-case runner
-    \item Realtime collaboration and reporting
-    \item Roadmaps, coach, and recruiter modules
-  \end{enumerate}
-\end{frame}
-
-
-\begin{frame}{Applications and Future Scope}
-  \begin{columns}[T,onlytextwidth]
-    \column{0.5\textwidth}
-    \begin{block}{Current applications}
-      \begin{itemize}
-        \item Student interview practice
-        \item Coding contest preparation
-        \item Peer-to-peer mock rounds
-        \item Recruiter evaluation support
-      \end{itemize}
-    \end{block}
-    \column{0.44\textwidth}
-    \begin{block}{Future scope}
-      \begin{itemize}
-        \item More domain-specific question banks
-        \item Better scoring and analytics
-        \item Video playback and session review
-        \item Multi-language support
-      \end{itemize}
-    \end{block}
-  \end{columns}
-\end{frame}
-
-\begin{frame}{Conclusion and References}
-  \begin{block}{Conclusion}
-    The project delivers a unified AI interview platform that combines assessment, practice, coaching, and collaboration in one browser-based system.
-  \end{block}
-  \begin{block}{References}
-    React, Node.js, Express, MongoDB, Socket.IO, WebRTC, Web Speech API, Gemini AI documentation, and standard interview preparation references.
-  \end{block}
-  \vspace{0.2cm}
-  \centering
-  \textbf{Thank you}
-\end{frame}
-
-\end{document}
+\begin{frame}{Core Modules}\n  \begin{columns}[T,onlytextwidth]\n    \column{0.48\textwidth}\n    \begin{block}{Interview modules}\n      \begin{itemize}\n        \item AI Interview\n        \item Coding Interview\n        \item Recruiter Portal\n        \item Interview History\n      \end{itemize}\n    \end{block}\n    \column{0.48\textwidth}\n    \begin{block}{Practice and growth modules}\n      \begin{itemize}\n        \item AI Coach\n        \item Learning Roadmaps\n        \item Resume-based guidance\n        \item Progress tracking\n      \end{itemize}\n    \end{block}\n  \end{columns}\n  \vspace{0.25cm}\n  The platform groups these modules under one authentication and navigation system, so the experience stays consistent across the entire application.\n\end{frame}\n\n\begin{frame}{AI Interview Flow}\n  \begin{enumerate}\n    \item The interviewer welcomes the candidate and begins with an introductory question.\n    \item The candidate answers through speech or text input.\n    \item The backend captures the response and sends it to the AI prompt engine.\n    \item The AI generates the next question based on the current interview stage.\n    \item Feedback and evaluation signals are stored for report generation.\n  \end{enumerate}\n  \begin{block}{What makes it useful}\n    The flow simulates a realistic interview rhythm while keeping the session structured, repeatable, and measurable.\n  \end{block}\n\end{frame}\n\n\begin{frame}{Coding Interview and Coding Battle}\n  \begin{columns}[T,onlytextwidth]\n    \column{0.48\textwidth}\n    \begin{block}{Coding interview}\n      \begin{itemize}\n        \item Problem statement with examples and constraints\n        \item Integrated code editor\n        \item Test-case based validation\n        \item Run and submit workflow\n      \end{itemize}\n    \end{block}\n    \column{0.48\textwidth}\n    \begin{block}{Coding battle}\n      \begin{itemize}\n        \item Competitive coding style challenge\n        \item Time-aware problem solving\n        \item Performance comparison inside a session\n        \item Better preparation for live contests\n      \end{itemize}\n    \end{block}\n  \end{columns}\n\end{frame}\n\n\begin{frame}{Peer Mock Interview and Recruiter Portal}\n  \begin{columns}[T,onlytextwidth]\n    \column{0.52\textwidth}\n    \begin{block}{Peer mock interview}\n      \begin{itemize}\n        \item User-to-user interview rooms\n        \item Live communication over realtime channels\n        \item Shared practice with the same domain or role\n      \end{itemize}\n    \end{block}\n    \column{0.42\textwidth}\n    \begin{block}{Recruiter portal}\n      \begin{itemize}\n        \item Schedule interviews\n        \item Review candidate performance\n        \item Track reports and history\n      \end{itemize}\n    \end{block}\n  \end{columns}\n\end{frame}\n\n\begin{frame}{Security and Data Handling}\n  \begin{itemize}\n    \item JWT authentication protects user sessions.\n    \item Sensitive workflows stay inside backend controllers and services.\n    \item MongoDB stores user profiles, interview results, reports, and roadmap progress.\n    \item Realtime events are managed separately from persistent data.\n    \item The browser only captures the signals needed for analysis and feedback.\n  \end{itemize}\n\end{frame}\n\n\begin{frame}{Implementation Phases}\n  \begin{enumerate}\n    \item Authentication and role-based navigation\n    \item Interview setup and live workspace\n    \item AI question generation and feedback flow\n    \item Coding editor and test-case runner\n    \item Realtime collaboration and reporting\n    \item Roadmaps, coach, and recruiter modules\n  \end{enumerate}\n\end{frame}\n\n\n\begin{frame}{Applications and Future Scope}\n  \begin{columns}[T,onlytextwidth]\n    \column{0.5\textwidth}\n    \begin{block}{Current applications}\n      \begin{itemize}\n        \item Student interview practice\n        \item Coding contest preparation\n        \item Peer-to-peer mock rounds\n        \item Recruiter evaluation support\n      \end{itemize}\n    \end{block}\n    \column{0.44\textwidth}\n    \begin{block}{Future scope}\n      \begin{itemize}\n        \item More domain-specific question banks\n        \item Better scoring and analytics\n        \item Video playback and session review\n        \item Multi-language support\n      \end{itemize}\n    \end{block}\n  \end{columns}\n\end{frame}\n\n\begin{frame}{Conclusion and References}\n  \begin{block}{Conclusion}\n    The project delivers a unified AI interview platform that combines assessment, practice, coaching, and collaboration in one browser-based system.\n  \end{block}\n  \begin{block}{References}\n    React, Node.js, Express, MongoDB, Socket.IO, WebRTC, Web Speech API, Gemini AI documentation, and standard interview preparation references.\n  \end{block}\n  \vspace{0.2cm}\n  \centering\n  \textbf{Thank you}\n\end{frame}\n\n\end{document}\n
