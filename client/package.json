@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-   
+    "ai-driven-interview-simulation-system": "file:..",
     "axios": "^1.7.9",
     "date-fns": "^4.4.0",
     "face-api.js": "^0.22.2",
