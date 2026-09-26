@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
 import Editor from '@monaco-editor/react';
@@ -173,7 +173,7 @@ function LiveInterviewPage() {
           console.log('[Proctoring] 10s passed with no face. Pausing interview.');
           setIsFacePaused(true);
           if (speech.isListening) speech.stop();
-        }, 10000);
+        }, 3000);
       }
     } else if (face.isFaceDetected) {
       if (facePauseTimeoutRef.current) {
@@ -362,6 +362,7 @@ function LiveInterviewPage() {
         testCases: currentQuestion.testCases || [],
       });
       setRunResults(response);
+
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Failed to run code');
     } finally {
@@ -560,7 +561,7 @@ function LiveInterviewPage() {
              </div>
              <h2 className="text-3xl font-bold text-[#0F172A] mb-4 tracking-tight">Face Not Detected</h2>
              <p className="text-lg text-[#64748B] max-w-md font-medium leading-relaxed">
-               We haven't detected your face for 10 seconds. The interview is paused. Please return to the camera view to continue.
+               We haven't detected your face clearly. The interview is paused. Please return to the camera view to continue.
              </p>
           </div>
         )}
@@ -620,7 +621,11 @@ function LiveInterviewPage() {
                   <span className="text-sm font-bold tracking-wide text-[#0F172A]">Code Workspace</span>
                   <select
                     value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
+                    onChange={(e) => {
+                      const newLang = e.target.value;
+                      setLanguage(newLang);
+                      setCode(getStarterCodeForLanguage(currentQuestion, newLang));
+                    }}
                     className="bg-[#F8FAFC] text-[#0F172A] text-xs px-3 py-1.5 rounded-lg border border-[#CBD5E1] outline-none shadow-sm"
                   >
                     <option value="javascript">JavaScript</option>
@@ -700,6 +705,11 @@ function LiveInterviewPage() {
                               {runResults.success ? 'All good' : 'Needs work'}
                             </div>
                           </div>
+                          {runResults.compilationError && (
+                            <div className="mb-3 bg-[#FEF2F2] border border-[#FECACA] text-[#DC2626] p-3 rounded-xl text-[12px] font-mono whitespace-pre-wrap break-words">
+                              {runResults.compilationError}
+                            </div>
+                          )}
                           {Array.isArray(runResults.testResults) && runResults.testResults.length > 0 && (
                             <div className="space-y-2">
                               {runResults.testResults.map((result, index) => (

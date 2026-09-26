@@ -1,4 +1,4 @@
-﻿import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '../config/env.js';
 
 const genAI = env.GEMINI_API_KEY ? new GoogleGenerativeAI(env.GEMINI_API_KEY) : null;
@@ -105,12 +105,19 @@ export const parseResumeText = async (text) => {
   const systemInstruction = 'You are an AI Resume Analyzer. Extract details from the resume text provided. Return strict JSON with the following keys: "skills" (array of strings), "projects" (array of objects with "name", "description", "technologies" array), "experience" (array of objects with "company", "role", "duration", "description"), and "education" (array of objects with "institution", "degree", "year"). If any information is missing, return an empty array for that key.';
   const userContent = text;
 
-  const result = await askGeminiForJSON(systemInstruction, userContent, fallback);
+  let result = await askGeminiForJSON(systemInstruction, userContent, fallback);
   
-  if (result.skills.length === 0 && result.experience.length === 0) {
+  result = {
+    skills: Array.isArray(result?.skills) ? result.skills : [],
+    projects: Array.isArray(result?.projects) ? result.projects : [],
+    experience: Array.isArray(result?.experience) ? result.experience : [],
+    education: Array.isArray(result?.education) ? result.education : [],
+  };
+  
+  if (result.skills.length === 0 && result.experience.length === 0 && result.projects.length === 0) {
     // Regex fallback if Gemini fails due to quota or invalid key
     const lowerText = text.toLowerCase();
-    const commonSkills = ['react', 'node', 'javascript', 'python', 'java', 'c++', 'html', 'css', 'sql', 'mongodb', 'express', 'git', 'docker', 'aws'];
+    const commonSkills = ['react', 'node', 'javascript', 'python', 'java', 'c++', 'html', 'css', 'sql', 'mongodb', 'express', 'git', 'docker', 'aws', 'typescript', 'vue', 'angular'];
     const extractedSkills = commonSkills.filter(skill => lowerText.includes(skill));
     
     return {
@@ -425,23 +432,33 @@ export const generateAdaptiveQuestion = async ({ setup, askedQuestions, latestRe
     latestResponse,
     adaptiveDifficulty,
   });
-  const questionStage = Math.min((askedQuestions || []).length, 2);
+  const questionStage = Math.min((askedQuestions || []).length, 7);
   const stageFallbackText = (() => {
     if (setup.interviewType === 'coding') {
       const codingFallbacks = [
         `Let's start simpler. Can you describe a brute-force approach first and mention one edge case?`,
         `Good. Now can you explain how you would optimize the solution or improve its space complexity?`,
         `Now push it further: what would you change for larger inputs or stricter constraints?`,
+        `Can you identify any potential bottlenecks or edge cases that might cause this solution to fail?`,
+        `How would you refactor this code to make it more readable or modular?`,
+        `If we had to deploy this code to production, what testing strategy would you employ?`,
+        `How would you adapt your approach if this function was called millions of times per second?`,
+        `Is there an alternative data structure that could simplify this logic even further?`
       ];
-      return codingFallbacks[questionStage];
+      return codingFallbacks[questionStage] || codingFallbacks[codingFallbacks.length - 1];
     }
 
     const interviewFallbacks = [
       `Can you walk me through one concrete example from ${setup.topic} and the result you achieved?`,
       `What trade-offs did you consider, and what would you improve if you revisited that answer?`,
       `How would you apply ${setup.topic} in a larger or more complex situation, and why?`,
+      `Can you describe a time when you faced a significant challenge related to ${setup.topic} and how you overcame it?`,
+      `How do you measure success or effectiveness when working with ${setup.topic}?`,
+      `If you had to teach someone else about ${setup.topic}, what would be the most important concept to emphasize?`,
+      `How do you stay updated with the latest trends or best practices regarding ${setup.topic}?`,
+      `Could you provide another brief example that highlights your problem-solving skills in this area?`
     ];
-    return interviewFallbacks[questionStage];
+    return interviewFallbacks[questionStage] || interviewFallbacks[interviewFallbacks.length - 1];
   })();
 
   const systemInstruction = 'You are a professional human interviewer. Ask exactly one interview question at a time, no answers, no long explanations. Keep tone polite and clear.';

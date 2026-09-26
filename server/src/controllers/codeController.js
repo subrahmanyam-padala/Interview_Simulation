@@ -26,11 +26,31 @@ export const runCode = async (req, res) => {
       });
     }
 
+    let compilationError = null;
+    if (!code.includes('return') && !code.includes('print')) {
+      compilationError = 'SyntaxError: Missing return statement. Your function did not return any value.';
+    } else if (['javascript', 'java', 'cpp'].includes(language) && code.includes('return') && !code.includes(';')) {
+      compilationError = 'SyntaxError: Missing semicolon at the end of the statement.';
+    }
+
+    if (compilationError) {
+      return res.json({
+        success: false,
+        compilationError,
+        runtimeError: null,
+        executionTime: null,
+        memory: null,
+        passed: 0,
+        total: testCases.length,
+        testResults: []
+      });
+    }
+
     // Simulate running against test cases
     const testResults = testCases.map(tc => {
-      // Very naive mock: assume the user's code returns the expected output if it includes "return"
-      // Otherwise, return something else to simulate failure.
-      const isPass = code.includes('return') || code.includes('print');
+      // A slightly better mock: assume the user's code returns the expected output if it includes "return"
+      // but ensure it's not just the default starter code "return 0;" or "pass".
+      const isPass = (code.includes('return') || code.includes('print')) && !code.includes('return 0;') && !code.includes('pass');
       return {
         input: tc.input || tc.expectedOutput,
         expected: tc.expectedOutput,
@@ -64,7 +84,7 @@ export const submitCode = async (req, res) => {
     
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    const isPass = code.includes('return') || code.includes('print');
+    const isPass = (code.includes('return') || code.includes('print')) && !code.includes('return 0;') && !code.includes('pass');
     const total = 10;
     const passed = isPass ? 10 : Math.floor(Math.random() * 4);
     
