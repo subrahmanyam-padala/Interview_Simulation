@@ -1,4 +1,4 @@
-﻿import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import GoogleSignInButton from '../components/GoogleSignInButton';
@@ -46,7 +46,6 @@ function RegisterPage() {
       setMessage(response.message || 'We sent a verification code to your email.');
       setForm((previous) => ({
         ...previous,
-        code: response.verificationCode || '',
         email: response.email || previous.email,
       }));
     } catch (requestError) {
@@ -84,9 +83,6 @@ function RegisterPage() {
     try {
       const response = await resendCode({ email: form.email });
       setMessage(response.message || 'OTP Sent');
-      if (response.verificationCode) {
-        setForm((previous) => ({ ...previous, code: response.verificationCode }));
-      }
     } catch (requestError) {
       setError(getAuthErrorMessage(requestError, 'Could not resend code'));
     } finally {

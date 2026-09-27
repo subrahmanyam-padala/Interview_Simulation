@@ -1,4 +1,4 @@
-﻿import crypto from 'crypto';
+import crypto from 'crypto';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import User from '../models/User.js';
@@ -226,7 +226,6 @@ export const register = asyncHandler(async (req, res) => {
       message: 'OTP Sent',
       requiresVerification: true,
       email: existing.email,
-      verificationCode: code,
     });
     return;
   }
@@ -244,7 +243,6 @@ export const register = asyncHandler(async (req, res) => {
     message: 'Registration Successful',
     requiresVerification: true,
     email: user.email,
-    verificationCode: code,
   });
 });
 
@@ -300,7 +298,6 @@ export const resendVerification = asyncHandler(async (req, res) => {
     message: 'OTP Sent',
     requiresVerification: true,
     email: user.email,
-    verificationCode: code,
   });
 });
 
